@@ -98,38 +98,45 @@ try:
             if len(items) == 0:
                 continue
 
+            # Gemiddelde score berekenen
             scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
             avg_score = sum(scores) / len(scores) if scores else 0
 
             if avg_score < score_threshold:
                 continue
 
-            with st.expander(f"{proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f}"):
-                for doc_id, source in items:
-                    st.json(source)
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("✅ Verdacht", key=f"yes_{doc_id}"):
+            # Groepsheader met timestamp + knoppen
+            group_title = f"{proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f} | {group_time.strftime('%Y-%m-%d %H:%M')}"
+            with st.expander(group_title):
+                colg1, colg2 = st.columns([1, 1])
+                with colg1:
+                    if st.button(f"✅ Markeer groep als verdacht", key=f"group_yes_{src_ip}_{dst_ip}_{group_time}"):
+                        for doc_id, _ in items:
                             es.update(index=INDEX_NAME, id=doc_id, body={
                                 "doc": {
                                     "user_feedback": "correct",
                                     "reviewed": True
                                 }
                             })
-                            st.success("✔️ Geregistreerd als verdacht")
-                            st.rerun()
+                        st.success("✔️ Groep gemarkeerd als verdacht")
+                        st.rerun()
 
-                    with col2:
-                        if st.button("❌ Niet verdacht", key=f"no_{doc_id}"):
+                with colg2:
+                    if st.button(f"❌ Markeer groep als niet verdacht", key=f"group_no_{src_ip}_{dst_ip}_{group_time}"):
+                        for doc_id, _ in items:
                             es.update(index=INDEX_NAME, id=doc_id, body={
                                 "doc": {
                                     "user_feedback": "incorrect",
                                     "reviewed": True
                                 }
                             })
-                            st.warning("❗ Geregistreerd als niet-verdacht")
-                            st.rerun()
+                        st.warning("❗ Groep gemarkeerd als niet verdacht")
+                        st.rerun()
+
+                # Toon individuele logs
+                for doc_id, source in items:
+                    st.markdown(f"**📄 Log** `{source.get('@timestamp', '?')}`")
+                    st.json(source)
 
 except NotFoundError:
     st.error(f"Index '{INDEX_NAME}' bestaat niet.")
