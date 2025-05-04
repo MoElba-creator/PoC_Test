@@ -13,7 +13,6 @@ INDEX_NAME = "network-anomalies"
 es = Elasticsearch(
     hosts=ES_HOST,
     api_key=ES_API_KEY,
-    verify_certs=True,
     headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=7"}
 )
 
