@@ -2,8 +2,9 @@ import streamlit as st
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 import os
+from datetime import datetime
 
-# === 1. Omgeving ===
+# === 1. Omgeving (Streamlit Cloud of lokaal .env) ===
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
 ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
 INDEX_NAME = "network-anomalies"
@@ -19,24 +20,41 @@ es = Elasticsearch(
 # === 3. Streamlit UI ===
 st.set_page_config(page_title="Anomalieën Review", layout="wide")
 st.title("🔍 Review netwerk anomalieën")
-st.info("Geef feedback op elke anomaly. Enkel anomalies zonder feedback worden weergegeven.")
+st.info("Geef feedback op anomalies. Enkel logs met `user_feedback = onbekend` worden getoond.")
 
-# === 4. Filters bovenaan ===
+# === 4. Filters ===
 with st.sidebar:
     st.header("🔎 Filters")
+
+    max_results = st.slider("Max. aantal anomalies", min_value=10, max_value=1000, step=10, value=100)
+
     filter_source_ip = st.text_input("Filter op bron IP (source_ip)")
     filter_destination_ip = st.text_input("Filter op bestemming IP (destination_ip)")
-    reset = st.button("🔁 Reset filters")
 
-# === 5. Elasticsearch-query bouwen ===
-must_conditions = [
-    {"term": {"user_feedback.keyword": "onbekend"}}
-]
+    start_date = st.date_input("Vanaf datum (timestamp)", value=None)
+    end_date = st.date_input("Tot datum (timestamp)", value=None)
 
+# === 5. Dynamische query bouwen ===
+must_conditions = [{"term": {"user_feedback.keyword": "onbekend"}}]
+
+# IP-filters
 if filter_source_ip:
     must_conditions.append({"match": {"source_ip": filter_source_ip}})
 if filter_destination_ip:
     must_conditions.append({"match": {"destination_ip": filter_destination_ip}})
+
+# Datumfilter op `timestamp` (ISO-formaat nodig)
+range_filter = {}
+if start_date:
+    range_filter["gte"] = start_date.strftime("%Y-%m-%dT00:00:00")
+if end_date:
+    range_filter["lte"] = end_date.strftime("%Y-%m-%dT23:59:59")
+if range_filter:
+    must_conditions.append({
+        "range": {
+            "timestamp": range_filter
+        }
+    })
 
 query = {
     "query": {
@@ -44,18 +62,17 @@ query = {
             "must": must_conditions
         }
     },
-    "size": 1000
+    "size": max_results
 }
 
-# === 6. Ophalen en tonen van anomalies ===
+# === 6. Ophalen en tonen ===
 try:
     res = es.search(index=INDEX_NAME, body=query)
     hits = res["hits"]["hits"]
-
-    st.caption(f"Gevonden logs: {len(hits)}")
+    st.caption(f"Gevonden anomalies: {len(hits)}")
 
     if not hits:
-        st.success("✅ Alle anomalies zijn al beoordeeld of geen match met filters.")
+        st.success("✅ Geen anomalies meer of filters geven geen resultaat.")
     else:
         for hit in hits:
             source = hit["_source"]
