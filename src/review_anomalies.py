@@ -86,7 +86,10 @@ try:
         for hit in hits:
             source = hit["_source"]
             doc_id = hit["_id"]
-            timestamp = datetime.strptime(source["@timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ")
+            raw_ts = source["@timestamp"]
+            if "." in raw_ts:
+                raw_ts = raw_ts.split(".")[0] + "." + raw_ts.split(".")[1][:6] + "Z"
+            timestamp = datetime.strptime(raw_ts, "%Y-%m-%dT%H:%M:%S.%fZ")
             bucket_time = timestamp.replace(second=0, microsecond=0)
             group_key = (source.get("source_ip"), source.get("destination_ip"), source.get("network_transport"), bucket_time)
             groups[group_key].append((doc_id, source))
