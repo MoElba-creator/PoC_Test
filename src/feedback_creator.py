@@ -1,69 +1,71 @@
+import os
+import json
 import pandas as pd
+import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-import xgboost as xgb
-import joblib
-from category_encoders import HashingEncoder
-from elasticsearch import Elasticsearch
-from elasticsearch.helpers import scan
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from sklearn.preprocessing import LabelEncoder
 
-# 1. Connectie
-es = Elasticsearch(
-    "https://uat.elastic.vives.cloud:9200",
-    basic_auth=("Laurens", "A,knS%q8M{H2/YR$]_)Z;4+KcxzWp"),
-    verify_certs=False
-)
+# === 1. Laad originele trainingsdata ===
+original_data = pd.read_csv("../data/dummy_network_logs.csv")
+original_data["label"] = 0  # originele logs zijn niet bevestigd
 
-# 2. Ophalen van feedbackrecords
-query = {
-    "query": {
-        "bool": {
-            "should": [
-                {"term": {"feedback_label": "correct"}},
-                {"term": {"feedback_label": "incorrect"}}
-            ]
-        }
-    }
-}
+# === 2. Laad feedbackdata ===
+with open("../train_model/gelabelde_anomalieën.json", "r", encoding="utf-8") as f:
+    feedback_data = json.load(f)
+feedback_df = pd.DataFrame(feedback_data)
+feedback_df = feedback_df[feedback_df["user_feedback"] == "correct"]
+feedback_df["label"] = 1  # bevestigde anomalieën
 
-records = [hit["_source"] for hit in scan(es, index="network-anomalies", query=query)]
-df = pd.DataFrame(records)
+# === 3. Combineer en verwerk ===
+full_data = pd.concat([original_data, feedback_df], ignore_index=True)
 
-if "feedback_label" not in df.columns or df.empty:
-    raise ValueError("Geen feedbackgegevens beschikbaar.")
+# === 4. Voorverwerking ===
+features = ["source_ip", "destination_ip", "network_transport", "packet_size", "duration"]
+X = full_data[features].copy()
+y = full_data["label"]
 
-# 3. Mapping en selectie
-df["label"] = df["feedback_label"].map({"correct": 1, "incorrect": 0})
-relevant_cols = [
-    "source_ip", "destination_ip", "source_port", "destination_port",
-    "network_transport", "session_iflow_bytes", "session_iflow_pkts"
-]
+# Encodeer categorische kolommen
+encoders = {}
+for col in ["source_ip", "destination_ip", "network_transport"]:
+    le = LabelEncoder()
+    X[col] = le.fit_transform(X[col].astype(str))
+    encoders[col] = le
 
-df = df[relevant_cols + ["label"]].dropna()
-for col in ["source_port", "destination_port", "session_iflow_bytes", "session_iflow_pkts"]:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
-df = df.dropna()
+# === 5. Train/test split ===
+X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.2, random_state=42)
 
-X = df[relevant_cols]
-y = df["label"]
+# === 6. Train meerdere modellen ===
 
-# 4. Encoding
-encoder = HashingEncoder(cols=["source_ip", "destination_ip", "network_transport"])
-X_encoded = encoder.fit_transform(X)
+# Random Forest
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+print("\n=== Random Forest ===")
+print(classification_report(y_test, rf_model.predict(X_test)))
 
-# 5. Training
-rf = RandomForestClassifier(n_estimators=100, random_state=42)
-log = LogisticRegression(max_iter=1000)
-xgb_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+# Logistic Regression
+lr_model = LogisticRegression(max_iter=1000)
+lr_model.fit(X_train, y_train)
+print("\n=== Logistic Regression ===")
+print(classification_report(y_test, lr_model.predict(X_test)))
 
-rf.fit(X_encoded, y)
-log.fit(X_encoded, y)
-xgb_model.fit(X_encoded, y)
+# XGBoost
+xgb_model = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+xgb_model.fit(X_train, y_train)
+print("\n=== XGBoost ===")
+print(classification_report(y_test, xgb_model.predict(X_test)))
 
-# 6. Opslaan
-joblib.dump(rf, "../models/random_forest_model.pkl")
-joblib.dump(log, "../models/logistic_regression_model.pkl")
+# === 7. Opslaan modellen ===
+os.makedirs("../models", exist_ok=True)
+
+joblib.dump(rf_model, "../models/random_forest_model.pkl")
+joblib.dump(lr_model, "../models/logistic_regression_model.pkl")
 joblib.dump(xgb_model, "../models/xgboost_model.pkl")
-joblib.dump(encoder, "../models/ip_encoder_hashing.pkl")
 
-print("✅ Opnieuw getraind en opgeslagen!")
+for col, le in encoders.items():
+    joblib.dump(le, f"../models/encoder_{col}.pkl")
+
+print("✅ Alle modellen en encoders opgeslagen.")
