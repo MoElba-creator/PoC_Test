@@ -27,14 +27,10 @@ st.info("Geef feedback op elke anomaly. Enkel anomalies zonder feedback worden w
 try:
     query = {
         "query": {
-            "bool": {
-                "must_not": {
-                    "exists": {
-                        "field": "user_feedback"
-                    }
-                }
-            }
-        },
+             "term": {
+                 "user_feedback.keyword": "onbekend"
+                     }
+                },
         "size": 1000
     }
 
