@@ -91,7 +91,7 @@ try:
                             }
                         })
                         st.success("✔️ Geregistreerd als verdacht")
-                        st.experimental_rerun()
+                        st.rerun()
                 with col2:
                     if st.button("❌ Niet verdacht", key=f"no_{doc_id}"):
                         es.update(index=INDEX_NAME, id=doc_id, body={
@@ -101,7 +101,7 @@ try:
                             }
                         })
                         st.warning("❗ Geregistreerd als niet-verdacht")
-                        st.experimental_rerun()
+                        st.rerun()
 
 except NotFoundError:
     st.error(f"Index '{INDEX_NAME}' bestaat niet.")
