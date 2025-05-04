@@ -11,9 +11,9 @@ INDEX_NAME = "network-anomalies"
 
 # === 2. Elasticsearch connectie ===
 es = Elasticsearch(
-    hosts=ES_HOST,
+    hosts=[ES_HOST],
     api_key=ES_API_KEY,
-    headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=7"}
+    request_timeout=30
 )
 
 # === 3. Streamlit UI ===
