@@ -106,7 +106,7 @@ try:
                 continue
 
             # Groepsheader met timestamp + knoppen
-            group_title = f"{proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f} | {group_time.strftime('%Y-%m-%d %H:%M')}"
+            group_title = f"{group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f}"
             with st.expander(group_title):
                 colg1, colg2 = st.columns([1, 1])
                 with colg1:
