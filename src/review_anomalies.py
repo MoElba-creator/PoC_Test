@@ -1,5 +1,4 @@
 import streamlit as st
-from elastic_transport import Transport
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 import os
@@ -11,13 +10,12 @@ ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
 INDEX_NAME = "network-anomalies"
 
 # === 2. Elasticsearch connectie ===
-transport = Transport(
-    hosts=[ES_HOST],
-    headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=7"},
-    verify_certs=True
+es = Elasticsearch(
+    ES_HOST,
+    api_key=ES_API_KEY,
+    verify_certs=True,
+    headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=7"}
 )
-
-es = Elasticsearch(transport=transport, api_key=ES_API_KEY)
 
 # === 3. Streamlit UI ===
 st.set_page_config(page_title="Anomalieën Review", layout="wide")
