@@ -35,10 +35,18 @@ df.columns = [col.replace(".", "_") for col in df.columns]
 
 # Voeg eventueel ontbrekende kolommen toe voor feedback loop
 if "user_feedback" not in df.columns:
-    df["user_feedback"] = None
+    df["user_feedback"] = "onbekend"
+else:
+    df["user_feedback"] = df["user_feedback"].fillna("onbekend")
 
 if "reviewed" not in df.columns:
     df["reviewed"] = False
+else:
+    df["reviewed"] = df["reviewed"].fillna(False)
+
+# Voor alles wat nog onbekend is
+df = df.fillna("onbekend")
+
 
 # Vermijd lege waarden
 df = df.fillna("onbekend")
