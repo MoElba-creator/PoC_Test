@@ -1,0 +1,6 @@
+elasticsearch>=8.11.0
+streamlit
+pandas
+python-dotenv
+joblib
+category_encoders
