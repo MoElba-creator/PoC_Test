@@ -3,8 +3,7 @@ from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 import os
 
-
-# === 1. Omgeving (werkt ook met Streamlit Cloud Secrets) ===
+# === 1. Omgeving ===
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
 ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
 INDEX_NAME = "network-anomalies"
@@ -17,28 +16,46 @@ es = Elasticsearch(
     request_timeout=30
 )
 
-
 # === 3. Streamlit UI ===
 st.set_page_config(page_title="Anomalieën Review", layout="wide")
 st.title("🔍 Review netwerk anomalieën")
 st.info("Geef feedback op elke anomaly. Enkel anomalies zonder feedback worden weergegeven.")
 
-# === 4. Ophalen van niet-gereviewde anomalies ===
-try:
-    query = {
-        "query": {
-             "term": {
-                 "user_feedback.keyword": "onbekend"
-                     }
-                },
-        "size": 1000
-    }
+# === 4. Filters bovenaan ===
+with st.sidebar:
+    st.header("🔎 Filters")
+    filter_source_ip = st.text_input("Filter op bron IP (source_ip)")
+    filter_destination_ip = st.text_input("Filter op bestemming IP (destination_ip)")
+    reset = st.button("🔁 Reset filters")
 
+# === 5. Elasticsearch-query bouwen ===
+must_conditions = [
+    {"term": {"user_feedback.keyword": "onbekend"}}
+]
+
+if filter_source_ip:
+    must_conditions.append({"match": {"source_ip": filter_source_ip}})
+if filter_destination_ip:
+    must_conditions.append({"match": {"destination_ip": filter_destination_ip}})
+
+query = {
+    "query": {
+        "bool": {
+            "must": must_conditions
+        }
+    },
+    "size": 1000
+}
+
+# === 6. Ophalen en tonen van anomalies ===
+try:
     res = es.search(index=INDEX_NAME, body=query)
     hits = res["hits"]["hits"]
 
+    st.caption(f"Gevonden logs: {len(hits)}")
+
     if not hits:
-        st.success("✅ Alle anomalies zijn al beoordeeld.")
+        st.success("✅ Alle anomalies zijn al beoordeeld of geen match met filters.")
     else:
         for hit in hits:
             source = hit["_source"]
@@ -49,7 +66,7 @@ try:
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("✅ Dit is effectief verdacht", key=f"yes_{doc_id}"):
+                    if st.button("✅ Verdacht", key=f"yes_{doc_id}"):
                         es.update(index=INDEX_NAME, id=doc_id, body={
                             "doc": {
                                 "user_feedback": "correct",
@@ -58,9 +75,8 @@ try:
                         })
                         st.success("✔️ Geregistreerd als verdacht")
                         st.experimental_rerun()
-
                 with col2:
-                    if st.button("❌ Geen echte anomaly", key=f"no_{doc_id}"):
+                    if st.button("❌ Niet verdacht", key=f"no_{doc_id}"):
                         es.update(index=INDEX_NAME, id=doc_id, body={
                             "doc": {
                                 "user_feedback": "incorrect",
