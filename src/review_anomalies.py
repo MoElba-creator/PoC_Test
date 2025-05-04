@@ -1,15 +1,14 @@
+import os
 import streamlit as st
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
-import os
 from datetime import datetime
 
-# === 1. Omgeving (Streamlit Cloud of lokaal .env) ===
+# === 1. Connectie met Elasticsearch ===
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
 ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
 INDEX_NAME = "network-anomalies"
 
-# === 2. Elasticsearch connectie ===
 es = Elasticsearch(
     hosts=[ES_HOST],
     api_key=ES_API_KEY,
@@ -17,90 +16,81 @@ es = Elasticsearch(
     request_timeout=30
 )
 
-# === 3. Streamlit UI ===
-st.set_page_config(page_title="Anomalieën Review", layout="wide")
+# === 2. Pagina-configuratie ===
+st.set_page_config(page_title="Review netwerk anomalieën", layout="wide")
 st.title("🔍 Review netwerk anomalieën")
 st.info("Geef feedback op anomalies. Enkel logs met `user_feedback = onbekend` worden getoond.")
 
-# === 4. Filters ===
-with st.sidebar:
-    st.header("🔎 Filters")
+# === 3. Sidebar filters ===
+st.sidebar.header("🔎 Filters")
+max_logs = st.sidebar.slider("Max. aantal anomalies", 10, 1000, 100)
+src_ip_filter = st.sidebar.text_input("Filter op bron IP (source_ip)")
+dst_ip_filter = st.sidebar.text_input("Filter op bestemming IP (destination_ip)")
+min_rf_score = st.sidebar.slider("Minimum RF score", 0.0, 1.0, 0.0, 0.01)
+min_xgb_score = st.sidebar.slider("Minimum XGB score", 0.0, 1.0, 0.0, 0.01)
+min_log_score = st.sidebar.slider("Minimum LOG score", 0.0, 1.0, 0.0, 0.01)
+start_date = st.sidebar.text_input("Vanaf datum (timestamp, YYYY-MM-DD)")
 
-    max_results = st.slider("Max. aantal anomalies", min_value=10, max_value=1000, step=10, value=100)
+# === 4. Dynamische query bouwen ===
+filters = [
+    {"term": {"user_feedback.keyword": "onbekend"}},
+    {"range": {"RF_score": {"gte": min_rf_score}}},
+    {"range": {"XGB_score": {"gte": min_xgb_score}}},
+    {"range": {"LOG_score": {"gte": min_log_score}}}
+]
 
-    filter_source_ip = st.text_input("Filter op bron IP (source_ip)")
-    filter_destination_ip = st.text_input("Filter op bestemming IP (destination_ip)")
-
-    start_date = st.date_input("Vanaf datum (timestamp)", value=None)
-    end_date = st.date_input("Tot datum (timestamp)", value=None)
-
-# === 5. Dynamische query bouwen ===
-must_conditions = [{"term": {"user_feedback.keyword": "onbekend"}}]
-
-# IP-filters
-if filter_source_ip:
-    must_conditions.append({"match": {"source_ip": filter_source_ip}})
-if filter_destination_ip:
-    must_conditions.append({"match": {"destination_ip": filter_destination_ip}})
-
-# Datumfilter op `timestamp` (ISO-formaat nodig)
-range_filter = {}
+if src_ip_filter:
+    filters.append({"term": {"source_ip.keyword": src_ip_filter}})
+if dst_ip_filter:
+    filters.append({"term": {"destination_ip.keyword": dst_ip_filter}})
 if start_date:
-    range_filter["gte"] = start_date.strftime("%Y-%m-%dT00:00:00")
-if end_date:
-    range_filter["lte"] = end_date.strftime("%Y-%m-%dT23:59:59")
-if range_filter:
-    must_conditions.append({
-        "range": {
-            "timestamp": range_filter
-        }
-    })
+    try:
+        date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+        filters.append({"range": {"timestamp": {"gte": date_obj.isoformat()}}})
+    except ValueError:
+        st.sidebar.error("❌ Ongeldige datum. Gebruik formaat: YYYY-MM-DD")
 
 query = {
-    "query": {
-        "bool": {
-            "must": must_conditions
-        }
-    },
-    "size": max_results
+    "query": {"bool": {"must": filters}},
+    "size": max_logs
 }
 
-# === 6. Ophalen en tonen ===
+# === 5. Data ophalen ===
 try:
     res = es.search(index=INDEX_NAME, body=query)
     hits = res["hits"]["hits"]
-    st.caption(f"Gevonden anomalies: {len(hits)}")
+
+    st.markdown(f"**Gevonden anomalies:** {len(hits)}")
 
     if not hits:
-        st.success("✅ Geen anomalies meer of filters geven geen resultaat.")
+        st.success("✅ Alle anomalies zijn al beoordeeld.")
     else:
+        unique_set = set()
         for hit in hits:
             source = hit["_source"]
             doc_id = hit["_id"]
 
-            with st.expander(f"{source.get('timestamp', '?')} | {source.get('source_ip')} ➜ {source.get('destination_ip')}"):
+            unique_key = (source.get("timestamp"), source.get("source_ip"), source.get("destination_ip"),
+                          source.get("source_port"), source.get("destination_port"))
+            if unique_key in unique_set:
+                continue
+            unique_set.add(unique_key)
+
+            beschrijving = f"{source.get('timestamp', '?')} | {source.get('network_transport', '?').upper()} | {source.get('source_ip')}:{source.get('source_port')} ➜ {source.get('destination_ip')}:{source.get('destination_port')} | " \
+                          f"RF: {source.get('RF_score', 0):.2f} | XGB: {source.get('XGB_score', 0):.2f} | LOG: {source.get('LOG_score', 0):.2f}"
+
+            with st.expander(beschrijving):
                 st.json(source)
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("✅ Verdacht", key=f"yes_{doc_id}"):
-                        es.update(index=INDEX_NAME, id=doc_id, body={
-                            "doc": {
-                                "user_feedback": "correct",
-                                "reviewed": True
-                            }
-                        })
-                        st.success("✔️ Geregistreerd als verdacht")
+                    if st.button("✅ Dit is effectief verdacht", key=f"yes_{doc_id}"):
+                        es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True}})
                         st.rerun()
+
                 with col2:
-                    if st.button("❌ Niet verdacht", key=f"no_{doc_id}"):
-                        es.update(index=INDEX_NAME, id=doc_id, body={
-                            "doc": {
-                                "user_feedback": "incorrect",
-                                "reviewed": True
-                            }
-                        })
-                        st.warning("❗ Geregistreerd als niet-verdacht")
+                    if st.button("❌ Geen echte anomaly", key=f"no_{doc_id}"):
+                        es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "incorrect", "reviewed": True}})
                         st.rerun()
 
 except NotFoundError:
