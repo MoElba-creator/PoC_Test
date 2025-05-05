@@ -38,6 +38,7 @@ st.sidebar.title("Filtering")
 
 # Sidebar: Reset filters
 if st.sidebar.button("🔄 Reset filters"):
+    st.session_state["group_filter_option"] = "Show all"
     st.session_state["doc_id_filter"] = ""
     st.session_state["source_ip"] = ""
     st.session_state["destination_ip"] = ""
