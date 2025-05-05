@@ -6,7 +6,7 @@ from datetime import datetime, time
 from collections import defaultdict
 import json
 
-# === 1. Elasticsearch connectie ===
+# Elasticsearch connectie aanmaken
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
 ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
 INDEX_NAME = "network-anomalies"
@@ -18,33 +18,36 @@ es = Elasticsearch(
     request_timeout=30
 )
 
-# === 2. UI instellingen ===
-st.set_page_config(page_title="Anomalieën Review", layout="wide")
-st.title("🔍 Review netwerk anomalieën")
-st.info("Geef feedback op anomalieën. Enkel logs met user_feedback = onbekend worden getoond.")
+#2 UI-instellingen gebruiksvriendelijk maken
+st.set_page_config(page_title="VIVES network logging anomalies review", layout="wide")
+col1, col2 = st.columns([1, 8])
+with col1:
+    st.image("images/vives_logo.png", width=60)
+with col2:
+    st.title("VIVES network logging anomalies review")
+st.info("Consult anomaly logging. Once feedback is given the log is not visible anymore.")
 
 # === 3. Sidebar filters ===
-st.sidebar.title("🔎 Filters")
+st.sidebar.title("Filtering")
 
-max_logs = st.sidebar.slider("Max. aantal anomalies", min_value=10, max_value=1000, value=100)
-source_ip = st.sidebar.text_input("Filter op bron IP (source_ip)")
-destination_ip = st.sidebar.text_input("Filter op bestemming IP (destination_ip)")
-protocol = st.sidebar.text_input("Filter op protocol (network_transport)")
+max_logs = st.sidebar.slider("Maximum shown logs", min_value=1, max_value=1000, value=100)
+doc_id_filter = st.sidebar.text_input("Search on unique log ID")
+source_ip = st.sidebar.text_input("Filter on Source IP")
+destination_ip = st.sidebar.text_input("Filter on Destination IP")
+protocol = st.sidebar.text_input("Filter on Network Protocol")
 score_threshold = st.sidebar.slider("Minimum gemiddelde score", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
 
-st.sidebar.markdown("### 📅 Filter op tijdsinterval")
-start_date = st.sidebar.date_input("Startdatum")
-start_time = st.sidebar.time_input("Starttijd", value=time(0, 0))
-end_date = st.sidebar.date_input("Einddatum")
-end_time = st.sidebar.time_input("Eindtijd", value=time(23, 59))
+st.sidebar.markdown("📅 Filter on log date")
+start_date = st.sidebar.date_input("Start date")
+start_time = st.sidebar.time_input("Start Time", value=time(0, 0))
+end_date = st.sidebar.date_input("End date")
+end_time = st.sidebar.time_input("End Time", value=time(23, 59))
 
 start_dt = datetime.combine(start_date, start_time)
 end_dt = datetime.combine(end_date, end_time)
 
-doc_id_filter = st.sidebar.text_input("📄 Zoek op document _id")
-
 # === 4. Feedback download ===
-if st.sidebar.button("📥 Download alle feedback als JSON"):
+if st.sidebar.button("📥 Download given feedback"):
     feedback_query = {
         "query": {
             "bool": {
@@ -59,7 +62,7 @@ if st.sidebar.button("📥 Download alle feedback als JSON"):
         feedback_json = json.dumps(labeled_hits, indent=2)
         st.sidebar.download_button("Download feedback.json", feedback_json, file_name="feedback.json", mime="application/json")
     except Exception as e:
-        st.sidebar.error(f"Download mislukt: {e}")
+        st.sidebar.error(f"Download failed: {e}")
 
 # === 5. Ophalen van data ===
 try:
@@ -100,7 +103,7 @@ try:
         hits = res["hits"]["hits"]
 
     if not hits:
-        st.success("✅ Geen anomalies gevonden met deze filters.")
+        st.success("✅ No anomalies were found. Consider adjusting the filters.")
     else:
         groups = defaultdict(list)
         for hit in hits:
@@ -134,20 +137,20 @@ try:
             with st.expander(group_title):
                 col1, col2 = st.columns([1, 1])
                 with col1:
-                    if st.button(f"✅ Markeer als verdacht", key=f"group_yes_{src_ip}_{dst_ip}_{group_time}"):
+                    if st.button(f"✅ Mark as suspicious", key=f"group_yes_{src_ip}_{dst_ip}_{group_time}"):
                         for doc_id, _ in items:
                             es.update(index=INDEX_NAME, id=doc_id, body={
                                 "doc": {"user_feedback": "correct", "reviewed": True}
                             })
-                        st.success("✔️ Gemarkeerd als verdacht")
+                        st.success("✔️ Marked as suspicious successful")
                         st.rerun()
                 with col2:
-                    if st.button(f"❌ Markeer als NIET verdacht", key=f"group_no_{src_ip}_{dst_ip}_{group_time}"):
+                    if st.button(f"❌ Mark as normal behavior", key=f"group_no_{src_ip}_{dst_ip}_{group_time}"):
                         for doc_id, _ in items:
                             es.update(index=INDEX_NAME, id=doc_id, body={
                                 "doc": {"user_feedback": "incorrect", "reviewed": True}
                             })
-                        st.warning("❗ Gemarkeerd als NIET verdacht")
+                        st.warning("️️️✔️ Marked as normal behavior")
                         st.rerun()
 
                 for doc_id, source in items:
@@ -155,6 +158,6 @@ try:
                     st.json(source)
 
 except NotFoundError:
-    st.error(f"Index '{INDEX_NAME}' bestaat niet.")
+    st.error(f"Index '{INDEX_NAME}' does not exist.")
 except Exception as e:
     st.exception(e)
