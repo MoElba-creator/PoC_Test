@@ -2,7 +2,6 @@ import os
 import json
 from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
-import pandas as pd
 
 # === 1. Laad omgevingsvariabelen ===
 load_dotenv()
@@ -25,7 +24,7 @@ except Exception as e:
     print(f"❌ Elasticsearch connectieprobleem: {e}")
     exit(1)
 
-# === 3. Query: haal alleen gelabelde feedback op ===
+# === 3. Query: alleen gelabelde feedback ophalen ===
 query = {
     "query": {
         "bool": {
@@ -37,14 +36,9 @@ query = {
     }
 }
 
-# === 4. Scroll gebruiken om grote datasets op te halen ===
+# === 4. Scroll API gebruiken om alles op te halen ===
 try:
-    page = es.search(
-        index=INDEX_NAME,
-        body=query,
-        scroll="2m",
-        size=1000
-    )
+    page = es.search(index=INDEX_NAME, body=query, scroll="2m", size=1000)
     sid = page["_scroll_id"]
     scroll_size = len(page["hits"]["hits"])
     all_hits = page["hits"]["hits"]
@@ -62,16 +56,18 @@ except Exception as e:
     print(f"❌ Fout bij ophalen van feedback logs: {e}")
     exit(1)
 
-# === 5. JSON normaliseren en exporteren ===
+# === 5. JSON exporteren naar bestand ===
 try:
-    from pandas import json_normalize
-
-    sources = [hit["_source"] | {"_id": hit["_id"]} for hit in all_hits]
-    df = json_normalize(sources)
-
     os.makedirs("data", exist_ok=True)
+    flattened = []
+
+    for hit in all_hits:
+        flat = hit["_source"].copy()
+        flat["_id"] = hit["_id"]
+        flattened.append(flat)
+
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(df.to_dict(orient="records"), f, indent=2, ensure_ascii=False)
+        json.dump(flattened, f, indent=2, ensure_ascii=False)
 
     print(f"✅ Feedback geëxporteerd naar: {OUTPUT_FILE}")
 except Exception as e:
