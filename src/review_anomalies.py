@@ -46,7 +46,10 @@ if st.sidebar.button("🔄 Reset filters"):
 
 
 # Sidebar: Define filters with session state keys
-show_orphaned_logs = st.sidebar.checkbox("Show ungrouped logs (single-log groups)", value=True)
+group_filter_option = st.sidebar.selectbox(
+    "Group filter",
+    ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"]
+)
 doc_id_filter = st.sidebar.text_input("Search on unique log ID", value=st.session_state.get("doc_id_filter", ""), key="doc_id_filter")
 source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.get("source_ip", ""), key="source_ip")
 destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.session_state.get("destination_ip", ""), key="destination_ip")
@@ -146,7 +149,9 @@ try:
             groups[group_key].append((doc_id, source))
 
         for (src_ip, dst_ip, proto, group_time), items in groups.items():
-            if len(items) == 1 and not show_orphaned_logs:
+            if group_filter_option == "Only grouped logs" and len(items) == 1:
+                continue
+            elif group_filter_option == "Only ungrouped logs (single-log groups)" and len(items) > 1:
                 continue
 
             scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
