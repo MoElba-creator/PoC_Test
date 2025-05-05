@@ -1,4 +1,4 @@
-name: retrain
+name: VIVES anomaly detection model training
 
 on:
   workflow_dispatch:
