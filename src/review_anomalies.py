@@ -33,15 +33,29 @@ with col2:
     st.title("Network logging anomalies review")
 st.info("Consult anomaly logging. Once feedback is given the log is not visible anymore.")
 
-# === 3. Sidebar filters ===
+# Sidebar filters
 st.sidebar.title("Filtering")
 
+# Reset filters
+if st.sidebar.button("🔄 Reset filters"):
+    st.session_state["doc_id_filter"] = ""
+    st.session_state["source_ip"] = ""
+    st.session_state["destination_ip"] = ""
+    st.session_state["protocol"] = ""
+    st.session_state["score_threshold"] = 0.0
+
+
+# Define filters with session state keys
+doc_id_filter = st.sidebar.text_input("Search on unique log ID", value=st.session_state.get("doc_id_filter", ""), key="doc_id_filter")
+source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.get("source_ip", ""), key="source_ip")
+destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.session_state.get("destination_ip", ""), key="destination_ip")
+protocol = st.sidebar.text_input("Filter on Network Protocol", value=st.session_state.get("protocol", ""), key="protocol")
+
+score_threshold = st.sidebar.slider(
+    "Minimum average score", min_value=0.0, max_value=1.0, value=st.session_state.get("score_threshold", 0.0), step=0.01, key="score_threshold"
+)
+
 max_logs = st.sidebar.slider("Maximum shown logs", min_value=1, max_value=1000, value=100)
-doc_id_filter = st.sidebar.text_input("Search on unique log ID")
-source_ip = st.sidebar.text_input("Filter on Source IP")
-destination_ip = st.sidebar.text_input("Filter on Destination IP")
-protocol = st.sidebar.text_input("Filter on Network Protocol")
-score_threshold = st.sidebar.slider("Minimum gemiddelde score", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
 
 st.sidebar.markdown("📅 Filter on log date")
 start_date = st.sidebar.date_input("Start date")
@@ -52,7 +66,7 @@ end_time = st.sidebar.time_input("End Time", value=time(23, 59))
 start_dt = datetime.combine(start_date, start_time)
 end_dt = datetime.combine(end_date, end_time)
 
-# === 4. Feedback download ===
+# Feedback download in JSON
 if st.sidebar.button("📥 Download given feedback"):
     feedback_query = {
         "query": {
