@@ -36,9 +36,9 @@ jobs:
       - name: Evaluate vs deployed model
         run: python retrain_pipeline/evaluate_models.py
 
-      - name: Upload training run (latest)
-        if: success() && hashFiles('models/best_model.pkl') != ''
+      - name: Upload feedback JSON artifact
+        if: always()  # ook als vorige stap faalt
         uses: actions/upload-artifact@v4
         with:
-          name: best_model
-          path: models/best_model.pkl
+          name: feedback-json
+          path: data/training_runs/**/feedback.json
