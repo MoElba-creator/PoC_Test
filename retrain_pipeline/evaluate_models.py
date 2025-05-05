@@ -1,40 +1,63 @@
+import os
 import joblib
-import json
-import pandas as pd
 from sklearn.metrics import f1_score
+from datetime import datetime
+from pathlib import Path
 
-with open("data/voorspelde_anomalieën_gefilterd.json", encoding="utf-8") as f:
-    val_data = json.load(f)
+# === Instellingen ===
+MODEL_DIR = Path("models")
+TRAINING_RUN_DIR = sorted(Path("data/training_runs").glob("*_candidate"))[-1]  # laatste run
 
-df = pd.DataFrame(val_data)
-df = df[df["user_feedback"].isin(["correct", "incorrect"])]
-df["label"] = df["user_feedback"].map({"correct": 1, "incorrect": 0})
+# === 1. Laad validatieset ===
+val_path = TRAINING_RUN_DIR / "validation_set.pkl"
+if not val_path.exists():
+    print(f"❌ Validatieset ontbreekt: {val_path}")
+    exit(1)
 
-# encoderen
-enc_src = joblib.load("models/encoder_source.ip.pkl")
-enc_dst = joblib.load("models/encoder_destination.ip.pkl")
-enc_proto = joblib.load("models/encoder_network.transport.pkl")
+X_val, y_val = joblib.load(val_path)
+print("✅ Validatieset geladen.")
 
-df["source.ip"] = enc_src.transform(df["source.ip"])
-df["destination.ip"] = enc_dst.transform(df["destination.ip"])
-df["network.transport"] = enc_proto.transform(df["network.transport"])
-
-features = ["source.ip", "destination.ip", "network.transport", "bytes", "connections"]
-X = df[features]
-y = df["label"]
-
+# === 2. Definieer modelnamen ===
 model_names = ["random_forest", "logistic_regression", "xgboost"]
 
+# === 3. Vergelijk kandidaatmodellen met gedeployde modellen ===
 for name in model_names:
-    current = joblib.load(f"models/{name}_model.pkl")
-    candidate = joblib.load(f"models/{name}_candidate.pkl")
+    candidate_path = MODEL_DIR / f"{name}_candidate.pkl"
+    deployed_path = MODEL_DIR / f"{name}_deployed.pkl"
 
-    f1_old = f1_score(y, current.predict(X))
-    f1_new = f1_score(y, candidate.predict(X))
+    if not candidate_path.exists():
+        print(f"⛔ Kandidatenmodel ontbreekt: {candidate_path}")
+        continue
 
-    print(f"\n📌 {name.upper()} — oud: {f1_old:.4f} | nieuw: {f1_new:.4f}")
-    if f1_new > f1_old + 0.01:
-        joblib.dump(candidate, f"models/{name}_model.pkl")
-        print("✅ Vervangen: nieuw model presteert beter.")
+    try:
+        candidate_model = joblib.load(candidate_path)
+        y_pred_candidate = candidate_model.predict(X_val)
+        f1_candidate = f1_score(y_val, y_pred_candidate)
+    except Exception as e:
+        print(f"❌ Fout bij evaluatie van {name}_candidate: {e}")
+        continue
+
+    if deployed_path.exists():
+        deployed_model = joblib.load(deployed_path)
+        y_pred_deployed = deployed_model.predict(X_val)
+        f1_deployed = f1_score(y_val, y_pred_deployed)
     else:
-        print("🚫 Geen vervanging: huidig model blijft.")
+        print(f"⚠️ Geen gedeployed model gevonden voor {name}, accepteer kandidaat automatisch.")
+        f1_deployed = -1
+
+    print(f"📊 {name} → Candidate F1: {f1_candidate:.3f} vs Deployed F1: {f1_deployed:.3f}")
+
+    # === 4. Beslissing: kandidaat promoten? ===
+    if f1_candidate > f1_deployed:
+        joblib.dump(candidate_model, deployed_path)
+        print(f"✅ Gedeployed model bijgewerkt voor {name} (F1 improved).")
+
+        # hernoem map van kandidaat naar accepted
+        accepted_path = Path(str(TRAINING_RUN_DIR).replace("_candidate", "_accepted"))
+        TRAINING_RUN_DIR.rename(accepted_path)
+        print(f"📁 Trainingsmap hernoemd naar: {accepted_path}")
+    else:
+        # hernoem naar rejected
+        rejected_path = Path(str(TRAINING_RUN_DIR).replace("_candidate", "_rejected"))
+        TRAINING_RUN_DIR.rename(rejected_path)
+        print(f"🚫 Model niet beter → map hernoemd naar: {rejected_path}")
