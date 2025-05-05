@@ -51,8 +51,12 @@ source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.
 destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.session_state.get("destination_ip", ""), key="destination_ip")
 protocol = st.sidebar.text_input("Filter on Network Protocol", value=st.session_state.get("protocol", ""), key="protocol")
 
+if "score_threshold" not in st.session_state:
+    st.session_state["score_threshold"] = 0.0
+
 score_threshold = st.sidebar.slider(
-    "Minimum average score", min_value=0.0, max_value=1.0, value=st.session_state.get("score_threshold", 0.0), step=0.01, key="score_threshold"
+    "Minimum average score", min_value=0.0, max_value=1.0,
+    step=0.01, key="score_threshold"
 )
 
 max_logs = st.sidebar.slider("Maximum shown logs", min_value=1, max_value=1000, value=100)
