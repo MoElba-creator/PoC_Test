@@ -13,7 +13,7 @@ OUTPUT_FILE = "data/gelabelde_anomalieën.json"
 # === 2. Verbinden met Elasticsearch ===
 try:
     es = Elasticsearch(
-        hosts=[ES_HOST.split(",")],  # zet string om naar lijst, werkt ook als 1 URL
+        hosts=[ES_HOST],  # GEEN .split() !!!
         api_key=ES_API_KEY,
         headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=8"},
     )
