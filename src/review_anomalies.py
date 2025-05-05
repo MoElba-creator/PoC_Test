@@ -20,7 +20,7 @@ es = Elasticsearch(
 )
 
 #2 UI-instellingen gebruiksvriendelijk maken
-st.set_page_config(page_title="VIVES network logging anomalies review", layout="wide")
+st.set_page_config(page_title="Network logging anomalies review", layout="wide")
 col1, col2 = st.columns([2, 10])
 with col1:
     st.image("images/logo_vives.png", use_container_width=True)
