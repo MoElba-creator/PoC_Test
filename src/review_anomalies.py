@@ -161,7 +161,7 @@ try:
             elif avg_score > 0.75:
                 color = "🟠"
 
-            orphan_label = "Single log" if len(items) == 1 else "Grouped logs"
+            orphan_label = "Single log | " if len(items) == 1 else "Grouped logs | "
             group_title = f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f}"
             with st.expander(group_title):
                 # create a unique, reproducible key
