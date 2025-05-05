@@ -7,7 +7,7 @@ from collections import defaultdict
 import json
 from PIL import Image
 
-# Elasticsearch connectie aanmaken
+# Elasticsearch veilige connectie aanmaken
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
 ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
 INDEX_NAME = "network-anomalies"
@@ -36,7 +36,7 @@ st.info("Consult anomaly logging. Once feedback is given the log is not visible 
 # Sidebar filters
 st.sidebar.title("Filtering")
 
-# Reset filters
+# Sidebar: Reset filters
 if st.sidebar.button("🔄 Reset filters"):
     st.session_state["doc_id_filter"] = ""
     st.session_state["source_ip"] = ""
@@ -45,7 +45,7 @@ if st.sidebar.button("🔄 Reset filters"):
     st.session_state["score_threshold"] = 0.0
 
 
-# Define filters with session state keys
+# Sidebar: Define filters with session state keys
 doc_id_filter = st.sidebar.text_input("Search on unique log ID", value=st.session_state.get("doc_id_filter", ""), key="doc_id_filter")
 source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.get("source_ip", ""), key="source_ip")
 destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.session_state.get("destination_ip", ""), key="destination_ip")
@@ -65,6 +65,9 @@ end_time = st.sidebar.time_input("End Time", value=time(23, 59))
 
 start_dt = datetime.combine(start_date, start_time)
 end_dt = datetime.combine(end_date, end_time)
+if end_dt < start_dt:
+    end_dt = start_dt
+
 
 # Feedback download in JSON
 if st.sidebar.button("📥 Download given feedback"):
@@ -84,7 +87,7 @@ if st.sidebar.button("📥 Download given feedback"):
     except Exception as e:
         st.sidebar.error(f"Download failed: {e}")
 
-# === 5. Ophalen van data ===
+# Retrieve flagged logging data from Elasticsearch index
 try:
     if doc_id_filter:
         # Zoek exact op document _id
