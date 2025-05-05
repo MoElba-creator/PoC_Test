@@ -46,6 +46,7 @@ if st.sidebar.button("🔄 Reset filters"):
 
 
 # Sidebar: Define filters with session state keys
+show_orphaned_logs = st.sidebar.checkbox("Show ungrouped logs (single-log groups)", value=True)
 doc_id_filter = st.sidebar.text_input("Search on unique log ID", value=st.session_state.get("doc_id_filter", ""), key="doc_id_filter")
 source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.get("source_ip", ""), key="source_ip")
 destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.session_state.get("destination_ip", ""), key="destination_ip")
@@ -145,7 +146,7 @@ try:
             groups[group_key].append((doc_id, source))
 
         for (src_ip, dst_ip, proto, group_time), items in groups.items():
-            if len(items) == 0:
+            if len(items) == 1 and not show_orphaned_logs:
                 continue
 
             scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
@@ -160,7 +161,8 @@ try:
             elif avg_score > 0.75:
                 color = "🟠"
 
-            group_title = f"{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f}"
+            orphan_label = "Single log" if len(items) == 1 else "Grouped logs"
+            group_title = f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f}"
             with st.expander(group_title):
                 # create a unique, reproducible key
                 group_id = f"{src_ip}_{dst_ip}_{proto}_{group_time.strftime('%Y-%m-%d_%H:%M:%S')}"
