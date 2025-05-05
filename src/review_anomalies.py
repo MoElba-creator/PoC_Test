@@ -22,7 +22,7 @@ es = Elasticsearch(
 st.set_page_config(page_title="VIVES network logging anomalies review", layout="wide")
 col1, col2 = st.columns([1, 8])
 with col1:
-    st.image("images/vives_logo.png", width=60)
+    st.image("images/logo_vives.png", width=60)
 with col2:
     st.title("VIVES network logging anomalies review")
 st.info("Consult anomaly logging. Once feedback is given the log is not visible anymore.")
