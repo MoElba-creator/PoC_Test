@@ -31,12 +31,12 @@ print(f"✅ Feedback opgeslagen onder: {RUN_DIR}/feedback.json")
 df = pd.json_normalize(data)
 
 print("Kolommen gevonden:", df.columns.tolist())
-if "user.feedback" not in df.columns:
+if "user_feedback" not in df.columns:
     print("❌ Kolom 'user_feedback' ontbreekt in data.")
     exit(1)
 
-df = df[df["user.feedback"].isin(["correct", "incorrect"])]
-df["label"] = df["user.feedback"].map({"correct": 1, "incorrect": 0})
+df = df[df["user_feedback"].isin(["correct", "incorrect"])]
+df["label"] = df["user_feedback"].map({"correct": 1, "incorrect": 0})
 
 features = [
     "source.ip", "destination.ip", "source.port", "destination.port",
