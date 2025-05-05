@@ -13,6 +13,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: 🧪 Inject secrets in environment
+        run: |
+          echo "ES_HOST=${{ secrets.ES_HOST }}" >> $GITHUB_ENV
+          echo "ES_API_KEY=${{ secrets.ES_API_KEY }}" >> $GITHUB_ENV
+
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
