@@ -39,8 +39,8 @@ df = df[df["user_feedback"].isin(["correct", "incorrect"])]
 df["label"] = df["user_feedback"].map({"correct": 1, "incorrect": 0})
 
 features = [
-    "source.ip", "destination.ip", "source.port", "destination.port",
-    "network.transport", "session.iflow_bytes", "session.iflow_pkts"
+    "source_ip", "destination_ip", "source_port", "destination_port",
+    "network_transport", "session_iflow_bytes", "session_iflow_pkts"
 ]
 if not all(f in df.columns for f in features):
     print("❌ Sommige vereiste features ontbreken in de JSON.")
