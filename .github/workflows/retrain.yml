@@ -3,37 +3,40 @@ name: retrain-evaluate
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # Dagelijks om 02:00
+    - cron: '0 3 * * *'  # Dagelijks om 3u 's nachts
 
 jobs:
-  retrain:
+  retrain-and-validate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Run feedback export
-      run: python retrain_pipeline/export_feedback.py
+      - name: Export feedback from Elasticsearch
+        run: python retrain_pipeline/export_feedback.py
 
-    - name: Run retraining
-      run: python retrain_pipeline/retrain_models.py
+      - name: Retrain candidate models
+        run: python retrain_pipeline/retrain_models.py
 
-    - name: Evaluate models
-      run: python retrain_pipeline/evaluate_models.py
+      - name: Evaluate vs deployed model
+        run: python retrain_pipeline/evaluate_models.py
 
-    - name: Upload training run results
-      uses: actions/upload-artifact@v3
-      with:
-        name: training-run
-        path: training_runs/latest/
+      - name: Upload training run (latest)
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-run-latest
+          path: training_runs/latest/
