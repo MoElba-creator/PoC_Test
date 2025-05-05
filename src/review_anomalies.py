@@ -155,9 +155,12 @@ try:
 
             group_title = f"{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f}"
             with st.expander(group_title):
+                # create a unique, reproducible key
+                group_id = f"{src_ip}_{dst_ip}_{proto}_{group_time.strftime('%Y-%m-%d_%H:%M:%S')}"
+
                 col1, col2 = st.columns([1, 1])
                 with col1:
-                    if st.button(f"✅ Mark as suspicious", key=f"group_yes_{src_ip}_{dst_ip}_{group_time}"):
+                    if st.button(f"🕵️ Mark as suspicious", key=f"group_yes_{group_id}"):
                         for doc_id, _ in items:
                             es.update(index=INDEX_NAME, id=doc_id, body={
                                 "doc": {"user_feedback": "correct", "reviewed": True}
@@ -165,7 +168,7 @@ try:
                         st.success("✔️ Marked as suspicious successful")
                         st.rerun()
                 with col2:
-                    if st.button(f"❌ Mark as normal behavior", key=f"group_no_{src_ip}_{dst_ip}_{group_time}"):
+                    if st.button(f"✅ Mark as normal behavior", key=f"group_no_{group_id}"):
                         for doc_id, _ in items:
                             es.update(index=INDEX_NAME, id=doc_id, body={
                                 "doc": {"user_feedback": "incorrect", "reviewed": True}
