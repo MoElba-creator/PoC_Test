@@ -2,23 +2,19 @@ import os
 import json
 from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
+import pandas as pd
 
-# === 1. Laad omgevingsvariabelen (.env of GitHub Secrets) ===
+# === 1. Laad omgevingsvariabelen ===
 load_dotenv()
-
-ES_HOST = os.getenv("ES_HOST") or os.environ.get("ES_HOST")
-ES_API_KEY = os.getenv("ES_API_KEY") or os.environ.get("ES_API_KEY")
+ES_HOST = os.getenv("ES_HOST")
+ES_API_KEY = os.getenv("ES_API_KEY")
 INDEX_NAME = "network-anomalies"
 OUTPUT_FILE = "data/gelabelde_anomalieën.json"
-
-if not ES_HOST or not ES_API_KEY:
-    print("❌ Elasticsearch secrets ontbreken!")
-    exit(1)
 
 # === 2. Verbinden met Elasticsearch ===
 try:
     es = Elasticsearch(
-        hosts=[ES_HOST],  # ⚠️ must be list!
+        hosts=[ES_HOST],
         api_key=ES_API_KEY,
         headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=8"},
     )
@@ -66,12 +62,17 @@ except Exception as e:
     print(f"❌ Fout bij ophalen van feedback logs: {e}")
     exit(1)
 
-# === 5. JSON exporteren ===
+# === 5. JSON normaliseren en exporteren ===
 try:
+    from pandas import json_normalize
+
+    sources = [hit["_source"] | {"_id": hit["_id"]} for hit in all_hits]
+    df = json_normalize(sources)
+
     os.makedirs("data", exist_ok=True)
-    data = [hit["_source"] | {"_id": hit["_id"]} for hit in all_hits]
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        json.dump(df.to_dict(orient="records"), f, indent=2, ensure_ascii=False)
+
     print(f"✅ Feedback geëxporteerd naar: {OUTPUT_FILE}")
 except Exception as e:
     print(f"❌ Fout bij schrijven van JSON-bestand: {e}")
