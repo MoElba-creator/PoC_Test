@@ -24,7 +24,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Fetch feedback data from Elasticsearch
-        run: python retrain_pipeline/fetch_feedback.py
+        run: python retrain_pipeline/export_feedback.py
 
       - name: Retrain all models (RF, LR, XGB)
         run: python retrain_pipeline/retrain_models.py
