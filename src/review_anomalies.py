@@ -5,6 +5,7 @@ import os
 from datetime import datetime, time
 from collections import defaultdict
 import json
+from PIL import Image
 
 # Elasticsearch connectie aanmaken
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
@@ -20,9 +21,9 @@ es = Elasticsearch(
 
 #2 UI-instellingen gebruiksvriendelijk maken
 st.set_page_config(page_title="VIVES network logging anomalies review", layout="wide")
-col1, col2 = st.columns([1.5, 8])
+col1, col2 = st.columns([2, 10])
 with col1:
-    st.image("images/logo_vives.png", use_column_width=True)
+    st.image("images/logo_vives.png", use_container_width=True)
 with col2:
     st.title("VIVES network logging anomalies review")
 st.info("Consult anomaly logging. Once feedback is given the log is not visible anymore.")
@@ -35,6 +36,7 @@ doc_id_filter = st.sidebar.text_input("Search on unique log ID")
 source_ip = st.sidebar.text_input("Filter on Source IP")
 destination_ip = st.sidebar.text_input("Filter on Destination IP")
 protocol = st.sidebar.text_input("Filter on Network Protocol")
+score_threshold = st.sidebar.slider("Minimum gemiddelde score", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
 
 st.sidebar.markdown("📅 Filter on log date")
 start_date = st.sidebar.date_input("Start date")
