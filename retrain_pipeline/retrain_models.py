@@ -28,8 +28,8 @@ with open(RUN_DIR / "feedback.json", "w", encoding="utf-8") as f:
 print(f"✅ Feedback opgeslagen onder: {RUN_DIR}/feedback.json")
 
 # === 2. Data voorbereiden ===
-flattened_data = [r["_source"] for r in data if "_source" in r]
-df = pd.json_normalize(flattened_data)
+df = pd.json_normalize(data)
+
 print("Kolommen gevonden:", df.columns.tolist())
 if "user.feedback" not in df.columns:
     print("❌ Kolom 'user_feedback' ontbreekt in data.")
