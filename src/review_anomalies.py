@@ -49,7 +49,8 @@ if st.sidebar.button("🔄 Reset filters"):
 # Sidebar: Define filters with session state keys
 group_filter_option = st.sidebar.selectbox(
     "Group filter",
-    ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"]
+    ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"],
+    key="group_filter_option"
 )
 doc_id_filter = st.sidebar.text_input("Search on unique log ID", value=st.session_state.get("doc_id_filter", ""), key="doc_id_filter")
 source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.get("source_ip", ""), key="source_ip")
