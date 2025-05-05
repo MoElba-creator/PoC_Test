@@ -9,7 +9,7 @@ import json
 from xgboost import XGBClassifier
 
 # Load labeled data
-with open("data/gelabelde_feedback.json", encoding="utf-8") as f:
+with open("data/gelabelde_anomalieën.json", encoding="utf-8") as f:
     data = json.load(f)
 
 df = pd.DataFrame(data)
