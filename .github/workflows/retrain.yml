@@ -1,16 +1,17 @@
-name: retrain-evaluate
+name: retrain
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 3 * * *'  # Dagelijks om 3u 's nachts
+    - cron: "0 3 * * *"  # Dagelijks om 03:00 's nachts
 
 jobs:
-  retrain-and-validate:
+  retrain-evaluate:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
+
+    env:
+      ES_HOST: ${{ secrets.ES_HOST }}
+      ES_API_KEY: ${{ secrets.ES_API_KEY }}
 
     steps:
       - name: Checkout repo
@@ -36,7 +37,8 @@ jobs:
         run: python retrain_pipeline/evaluate_models.py
 
       - name: Upload training run (latest)
+        if: success() && hashFiles('models/best_model.pkl') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: training-run-latest
-          path: training_runs/latest/
+          name: best_model
+          path: models/best_model.pkl
