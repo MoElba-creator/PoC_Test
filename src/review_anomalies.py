@@ -80,22 +80,56 @@ if end_dt < start_dt:
 
 
 # Feedback download in JSON
-if st.sidebar.button("📥 Download given feedback"):
+if st.sidebar.button("📥 Download filtered feedback"):
     feedback_query = {
-        "query": {
-            "bool": {
-                "must_not": [{"term": {"user_feedback.keyword": "onbekend"}}]
-            }
-        },
-        "size": 10000
+        "bool": {
+            "must_not": [{"term": {"user_feedback.keyword": "onbekend"}}],
+            "filter": [
+                {"range": {"@timestamp": {"gte": start_dt.isoformat(), "lte": end_dt.isoformat()}}}
+            ]
+        }
     }
+
+    if doc_id_filter:
+        query = {
+            "query": {
+                "ids": {"values": [doc_id_filter]}
+            },
+            "size": 1
+        }
+    else:
+        if source_ip:
+            feedback_query["filter"].append({"term": {"source_ip.keyword": source_ip}})
+        if destination_ip:
+            feedback_query["filter"].append({"term": {"destination_ip.keyword": destination_ip}})
+        if protocol:
+            feedback_query["filter"].append({"term": {"network_transport.keyword": protocol}})
+        if score_threshold > 0:
+            feedback_query["filter"].append({"range": {"RF_score": {"gte": score_threshold}}})
+
+        query = {
+            "query": feedback_query,
+            "size": 10000,
+            "sort": [{"@timestamp": {"order": "desc"}}]
+        }
+
     try:
-        res = es.search(index=INDEX_NAME, body=feedback_query)
-        labeled_hits = [hit["_source"] for hit in res["hits"]["hits"]]
-        feedback_json = json.dumps(labeled_hits, indent=2)
-        st.sidebar.download_button("Download feedback.json", feedback_json, file_name="feedback.json", mime="application/json")
+        res = es.search(index=INDEX_NAME, body=query)
+        filtered_hits = [
+            {**hit["_source"], "_id": hit["_id"]}
+            for hit in res["hits"]["hits"]
+        ]
+        feedback_json = json.dumps(filtered_hits, indent=2)
+
+        st.sidebar.download_button(
+            label="Download filtered_feedback.json",
+            data=feedback_json,
+            file_name="filtered_feedback.json",
+            mime="application/json"
+        )
     except Exception as e:
         st.sidebar.error(f"Download failed: {e}")
+
 
 # Retrieve flagged logging data from Elasticsearch index
 try:
