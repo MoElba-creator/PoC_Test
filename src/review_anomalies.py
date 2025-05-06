@@ -93,10 +93,16 @@ if st.sidebar.button("📥 Download filtered feedback"):
     if doc_id_filter:
         query = {
             "query": {
-                "ids": {"values": [doc_id_filter]}
+                "bool": {
+                    "must": [
+                        {"ids": {"values": [doc_id_filter]}},
+                        {"bool": {"must_not": [{"term": {"user_feedback.keyword": "onbekend"}}]}}
+                    ]
+                }
             },
             "size": 1
         }
+
     else:
         if source_ip:
             feedback_query["filter"].append({"term": {"source_ip.keyword": source_ip}})
