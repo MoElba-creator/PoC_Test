@@ -26,7 +26,7 @@ df = df[[col for col in relevant_columns if col in df.columns]].dropna()
 # Encode categorical features
 encoder_input_columns = ["source.ip", "destination.ip", "network.transport", "event.action"]
 df[encoder_input_columns] = df[encoder_input_columns].astype(str)
-encoder = HashingEncoder(cols=encoder_input_columns, n_components=8)
+encoder = HashingEncoder(cols=encoder_input_columns, n_components=32)
 X_cat_encoded = encoder.fit_transform(df[encoder_input_columns])
 
 # Add numeric features
