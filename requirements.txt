@@ -6,3 +6,4 @@ joblib
 category_encoders
 scikit-learn
 xgboost
+bcrypt
