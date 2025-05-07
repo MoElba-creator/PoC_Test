@@ -79,10 +79,11 @@ destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.sess
 protocol = st.sidebar.text_input("Filter on Network Protocol", value=st.session_state.get("protocol", ""), key="protocol")
 score_type = st.sidebar.selectbox(
     "Select ML-modelscore for filtering",
-    options=["No filtering", "RF", "ISO", "XGBoost", "Logistic", "Average of all"],  # <-- deze opties gebruiken
+    options=["No filtering", "RF", "ISO", "XGBoost", "Logistic", "Average of all"],
     index=0,
     key="score_type"
 )
+
 if "score_threshold" not in st.session_state:
     st.session_state["score_threshold"] = 0.0
 
@@ -245,20 +246,20 @@ try:
                 "ISO": avg_iso,
                 "XGBoost": avg_xgb,
                 "Logistic": avg_log,
-                "Average of all": avg_all,
+                "Average of all": source.get("model_score", 0),
                 "No filtering": None
             }
             selected_score = score_map.get(score_type, None)
 
-            # Filter op gekozen score indien filtering actief is
+            # Filter uitschakelen als gekozen is voor "No filtering"
             if score_type != "No filtering" and selected_score is not None and selected_score < score_threshold:
                 continue
 
             # Kleurindicator gebaseerd op geselecteerde score
             color = "🟢"
-            if selected_score > 0.9:
+            if selected_score is not None and selected_score > 0.9:
                 color = "🔴"
-            elif selected_score > 0.75:
+            elif selected_score is not None and selected_score > 0.75:
                 color = "🟠"
 
             orphan_label = "Single log | " if len(items) == 1 else "Grouped logs | "
