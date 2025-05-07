@@ -10,6 +10,9 @@ import json
 from PIL import Image
 import bcrypt
 from dotenv import load_dotenv
+
+st.set_page_config(page_title="VIVES Network logging anomalies review", layout="wide")
+
 load_dotenv()
 
 # Login for security reasons
@@ -82,7 +85,6 @@ logo = Image.open(logo_path).convert("RGBA")
 white_bg = Image.new("RGBA", logo.size, (255, 255, 255, 255))
 white_logo = Image.alpha_composite(white_bg, logo)
 
-st.set_page_config(page_title="VIVES Network logging anomalies review", layout="wide")
 col1, col2 = st.columns([2, 10])
 with col1:
     st.image(white_logo, use_container_width=True)
