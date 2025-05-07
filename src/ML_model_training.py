@@ -13,7 +13,7 @@ with open("../data/dummy_network_logs.json", "r", encoding="utf-8") as f:
     records = json.load(f)
 df = pd.DataFrame(records)
 
-# Clean data
+# Select relevant columns
 relevant_columns = [
     "source.ip", "destination.ip",
     "source.port", "destination.port",
@@ -23,10 +23,10 @@ relevant_columns = [
 ]
 df = df[[col for col in relevant_columns if col in df.columns]].dropna()
 
-# Encoders
+# Encode categorical features
 encoder_input_columns = ["source.ip", "destination.ip", "network.transport", "event.action"]
-encoder = HashingEncoder(cols=encoder_input_columns, n_components=36)
 df[encoder_input_columns] = df[encoder_input_columns].astype(str)
+encoder = HashingEncoder(cols=encoder_input_columns, n_components=8)
 X_cat_encoded = encoder.fit_transform(df[encoder_input_columns])
 
 # Add numeric features
@@ -42,18 +42,17 @@ iso.fit(X)
 df["isoforest_score"] = iso.decision_function(X)
 X["isoforest_score"] = df["isoforest_score"]
 
-# Target
+# Prepare target
 y = df["label"]
 
 # Train/test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Models
+# Train supervised models
 rf = RandomForestClassifier(random_state=42)
 log = LogisticRegression(max_iter=1000)
 xgb = XGBClassifier(use_label_encoder=False, eval_metric="logloss")
 
-# Fit models
 rf.fit(X_train, y_train)
 log.fit(X_train, y_train)
 xgb.fit(X_train, y_train)
@@ -63,7 +62,7 @@ y_rf = rf.predict(X_test)
 y_log = log.predict(X_test)
 y_xgb = xgb.predict(X_test)
 
-# Evaluation function
+# Evaluation
 def evaluate(name, y_true, y_pred):
     print(f"\n--- {name} ---")
     print("Accuracy :", accuracy_score(y_true, y_pred))
@@ -71,15 +70,14 @@ def evaluate(name, y_true, y_pred):
     print("Recall   :", recall_score(y_true, y_pred, zero_division=0))
     print("F1 Score :", f1_score(y_true, y_pred, zero_division=0))
 
-# Evaluate models
 evaluate("Random Forest", y_test, y_rf)
 evaluate("Logistic Regression", y_test, y_log)
 evaluate("XGBoost", y_test, y_xgb)
 
-# Save models
+# Save models and encoder
 joblib.dump(rf, "../models/random_forest_model.pkl")
 joblib.dump(log, "../models/logistic_regression_model.pkl")
 joblib.dump(xgb, "../models/xgboost_model.pkl")
 joblib.dump(encoder, "../models/ip_encoder_hashing.pkl")
 
-print("\nAll models trained, evaluated, and saved.")
+print("\nAll models are trained and saved!")
