@@ -5,6 +5,8 @@ from category_encoders import HashingEncoder
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # Load data
 with open("../data/dummy_network_logs.json", "r", encoding="utf-8") as f:
@@ -23,7 +25,7 @@ df = df[[col for col in relevant_columns if col in df.columns]].dropna()
 
 # Encoders
 encoder_input_columns = ["source.ip", "destination.ip", "network.transport", "event.action"]
-encoder = HashingEncoder(cols=encoder_input_columns, n_components=8)
+encoder = HashingEncoder(cols=encoder_input_columns, n_components=36)
 df[encoder_input_columns] = df[encoder_input_columns].astype(str)
 X_cat_encoded = encoder.fit_transform(df[encoder_input_columns])
 
@@ -34,28 +36,50 @@ X["destination.port"] = df["destination.port"]
 X["session.iflow_bytes"] = df["session.iflow_bytes"]
 X["session.iflow_pkts"] = df["session.iflow_pkts"]
 
-# Add isoforest_score for supervised models
+# Add isoforest_score
 iso = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
 iso.fit(X)
 df["isoforest_score"] = iso.decision_function(X)
 X["isoforest_score"] = df["isoforest_score"]
 
-# Prepare target
+# Target
 y = df["label"]
 
-# Train models
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Models
 rf = RandomForestClassifier(random_state=42)
 log = LogisticRegression(max_iter=1000)
 xgb = XGBClassifier(use_label_encoder=False, eval_metric="logloss")
 
-rf.fit(X, y)
-log.fit(X, y)
-xgb.fit(X, y)
+# Fit models
+rf.fit(X_train, y_train)
+log.fit(X_train, y_train)
+xgb.fit(X_train, y_train)
 
-#  Save models and encoder
+# Predict
+y_rf = rf.predict(X_test)
+y_log = log.predict(X_test)
+y_xgb = xgb.predict(X_test)
+
+# Evaluation function
+def evaluate(name, y_true, y_pred):
+    print(f"\n--- {name} ---")
+    print("Accuracy :", accuracy_score(y_true, y_pred))
+    print("Precision:", precision_score(y_true, y_pred, zero_division=0))
+    print("Recall   :", recall_score(y_true, y_pred, zero_division=0))
+    print("F1 Score :", f1_score(y_true, y_pred, zero_division=0))
+
+# Evaluate models
+evaluate("Random Forest", y_test, y_rf)
+evaluate("Logistic Regression", y_test, y_log)
+evaluate("XGBoost", y_test, y_xgb)
+
+# Save models
 joblib.dump(rf, "../models/random_forest_model.pkl")
 joblib.dump(log, "../models/logistic_regression_model.pkl")
 joblib.dump(xgb, "../models/xgboost_model.pkl")
 joblib.dump(encoder, "../models/ip_encoder_hashing.pkl")
 
-print("All models trained and saved with isoforest_score included.")
+print("\nAll models trained, evaluated, and saved.")
