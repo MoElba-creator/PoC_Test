@@ -77,9 +77,10 @@ doc_id_filter = st.sidebar.text_input("Search on unique log ID", value=st.sessio
 source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.get("source_ip", ""), key="source_ip")
 destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.session_state.get("destination_ip", ""), key="destination_ip")
 protocol = st.sidebar.text_input("Filter on Network Protocol", value=st.session_state.get("protocol", ""), key="protocol")
-score_type = st.sidebar.selectbox("Scoretype for filtering and color",
- options=["RF", "ISO", "Hybrid"],
-    index=2,
+score_type = st.sidebar.selectbox(
+    "Select ML-modelscore for filtering",
+    options=["No filtering", "RF", "ISO", "XGBoost", "Logistic", "Average of all"],
+    index=0,  # standaard = geen filter
     key="score_type"
 )
 
@@ -225,35 +226,48 @@ try:
             rf_scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
             iso_scores = [s.get("isoforest_score", 0) for _, s in items if
                           isinstance(s.get("isoforest_score", 0), (int, float))]
+            xgb_scores = [s.get("xgboost_score", 0) for _, s in items if
+                          isinstance(s.get("xgboost_score", 0), (int, float))]
+            log_scores = [s.get("logistic_score", 0) for _, s in items if
+                          isinstance(s.get("logistic_score", 0), (int, float))]
 
-            avg_rf_score = sum(rf_scores) / len(rf_scores) if rf_scores else 0
-            avg_iso_score = sum(iso_scores) / len(iso_scores) if iso_scores else 0
-            hybrid_score = (avg_rf_score + avg_iso_score) / 2
+            # Gemiddelde score per model
+            avg_rf = sum(rf_scores) / len(rf_scores) if rf_scores else 0
+            avg_iso = sum(iso_scores) / len(iso_scores) if iso_scores else 0
+            avg_xgb = sum(xgb_scores) / len(xgb_scores) if xgb_scores else 0
+            avg_log = sum(log_scores) / len(log_scores) if log_scores else 0
 
-            if not doc_id_filter and hybrid_score < score_threshold:
+            # Gemiddelde over alle modellen
+            avg_all = (avg_rf + avg_iso + avg_xgb + avg_log) / 4
+
+            # Bepaal geselecteerde score op basis van de keuze in de sidebar
+            score_map = {
+                "RF": avg_rf,
+                "ISO": avg_iso,
+                "XGBoost": avg_xgb,
+                "Logistic": avg_log,
+                "Gemiddelde van alle": avg_all
+            }
+            selected_score = score_map.get(score_type, 0)
+
+            # Filter uitschakelen als gekozen is voor "Geen filtering"
+            if score_type != "Geen filtering" and not doc_id_filter and selected_score < score_threshold:
                 continue
 
-            if score_type == "RF":
-                selected_score = avg_rf_score
-            elif score_type == "ISO":
-                selected_score = avg_iso_score
-            else:
-                selected_score = hybrid_score
-
-            if not doc_id_filter and selected_score < score_threshold:
-                continue
+            # Kleurindicator gebaseerd op geselecteerde score
             color = "🟢"
-            if hybrid_score > 0.9:
+            if selected_score > 0.9:
                 color = "🔴"
-            elif hybrid_score > 0.75:
+            elif selected_score > 0.75:
                 color = "🟠"
 
             orphan_label = "Single log | " if len(items) == 1 else "Grouped logs | "
             group_title = (
                 f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | "
                 f"{proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | "
-                f"RF: {avg_rf_score:.2f} | ISO: {avg_iso_score:.2f} | Selected: {selected_score:.2f}"
+                f"{score_type}: {selected_score:.2f}"
             )
+
             with st.expander(group_title):
                 # create a unique, reproducible key
                 group_id = f"{src_ip}_{dst_ip}_{proto}_{group_time.strftime('%Y-%m-%d_%H:%M:%S')}"
