@@ -2,29 +2,59 @@ import streamlit as st
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 import os
+from pathlib import Path
 from datetime import datetime, time
 from collections import defaultdict
 import json
 from PIL import Image
+import bcrypt
+from dotenv import load_dotenv
+load_dotenv()
 
 # Login for security reasons
 def check_login():
     correct_username = os.getenv("LOGIN_USER")
-    correct_password = os.getenv("LOGIN_PASS")
+    correct_password_hash = os.getenv("LOGIN_PASS_HASH").encode("utf-8")  # hashed password
 
+    # Initialize session state
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
+    if "login_attempts" not in st.session_state:
+        st.session_state.login_attempts = 0
+    if "last_attempt_time" not in st.session_state:
+        st.session_state.last_attempt_time = 0
 
-    if not st.session_state.authenticated:
-        with st.form("Login"):
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Login")
-            if submitted and username == correct_username and password == correct_password:
+    # If already authenticated, show logout
+    if st.session_state.authenticated:
+        st.sidebar.success(f"🔓 Logged in as {correct_username}")
+        if st.sidebar.button("🔒 Logout"):
+            st.session_state.authenticated = False
+            st.rerun()
+        return
+
+    # Login form
+    with st.form("Login"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login")
+
+        if submitted:
+            now = time.time()
+            if now - st.session_state.last_attempt_time < 5:
+                st.error("Please wait a few seconds before trying again.")
+                st.stop()
+
+            if username == correct_username and bcrypt.checkpw(password.encode("utf-8"), correct_password_hash):
                 st.session_state.authenticated = True
+                st.session_state.login_attempts = 0
+                st.experimental_rerun()
             else:
+                st.session_state.last_attempt_time = now
+                st.session_state.login_attempts += 1
                 st.error("Invalid credentials")
-        st.stop()
+                st.stop()
+
+    st.stop()
 
 check_login()
 
@@ -41,10 +71,15 @@ es = Elasticsearch(
 )
 
 #2 UX
+logo_path = Path(__file__).resolve().parent.parent / "images" / "logo_vives.png"
 
-logo = Image.open("images/logo_vives.png").convert("RGBA")
-white_bg = Image.new("RGBA", logo.size, (255, 255, 255, 255))
-white_logo = Image.alpha_composite(white_bg, logo)
+if not logo_path.exists():
+    st.error(f"Logo not found at: {logo_path}")
+else:
+    logo = Image.open(logo_path).convert("RGBA")
+    white_bg = Image.new("RGBA", logo.size, (255, 255, 255, 255))
+    white_logo = Image.alpha_composite(white_bg, logo)
+    st.image(white_logo, use_container_width=True)
 
 st.set_page_config(page_title="VIVES Network logging anomalies review", layout="wide")
 col1, col2 = st.columns([2, 10])
