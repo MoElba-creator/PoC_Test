@@ -44,7 +44,7 @@ for col in numeric_columns:
     df_selected[col] = pd.to_numeric(df_selected[col], errors="coerce")
 
 df_selected = df_selected.dropna()
-print("Cleaned and usable rows: ", len(df_selected))
+print("Number of rows after cleanup: ", len(df_selected))
 
 # Encode for unsupervised model
 X_unlabeled = df_selected.copy()
