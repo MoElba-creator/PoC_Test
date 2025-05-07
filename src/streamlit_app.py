@@ -71,15 +71,15 @@ es = Elasticsearch(
 )
 
 #2 UX
-logo_path = Path(__file__).resolve().parent.parent / "images" / "logo_vives.png"
 
+logo_path = Path(__file__).resolve().parent.parent / "images" / "logo_vives.png"
 if not logo_path.exists():
     st.error(f"Logo not found at: {logo_path}")
-else:
-    logo = Image.open(logo_path).convert("RGBA")
-    white_bg = Image.new("RGBA", logo.size, (255, 255, 255, 255))
-    white_logo = Image.alpha_composite(white_bg, logo)
-    st.image(white_logo, use_container_width=True)
+    st.stop()
+
+logo = Image.open(logo_path).convert("RGBA")
+white_bg = Image.new("RGBA", logo.size, (255, 255, 255, 255))
+white_logo = Image.alpha_composite(white_bg, logo)
 
 st.set_page_config(page_title="VIVES Network logging anomalies review", layout="wide")
 col1, col2 = st.columns([2, 10])
