@@ -9,8 +9,8 @@ from PIL import Image
 
 # Login for security reasons
 def check_login():
-    correct_username = os.getenv["LOGIN_USER"]
-    correct_password = os.getenv["LOGIN_PASS"]
+    correct_username = os.getenv("LOGIN_USER")
+    correct_password = os.getenv("LOGIN_PASS")
 
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
