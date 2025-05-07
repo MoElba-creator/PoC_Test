@@ -217,20 +217,25 @@ try:
             elif group_filter_option == "Only ungrouped logs (single-log groups)" and len(items) > 1:
                 continue
 
-            scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
-            avg_score = sum(scores) / len(scores) if scores else 0
+            rf_scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
+            iso_scores = [s.get("isoforest_score", 0) for _, s in items if
+                          isinstance(s.get("isoforest_score", 0), (int, float))]
 
-            if not doc_id_filter and avg_score < score_threshold:
+            avg_rf_score = sum(rf_scores) / len(rf_scores) if rf_scores else 0
+            avg_iso_score = sum(iso_scores) / len(iso_scores) if iso_scores else 0
+            hybrid_score = (avg_rf_score + avg_iso_score) / 2
+
+            if not doc_id_filter and hybrid_score < score_threshold:
                 continue
 
             color = "🟢"
-            if avg_score > 0.9:
+            if hybrid_score > 0.9:
                 color = "🔴"
-            elif avg_score > 0.75:
+            elif hybrid_score > 0.75:
                 color = "🟠"
 
             orphan_label = "Single log | " if len(items) == 1 else "Grouped logs | "
-            group_title = f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF avg: {avg_score:.2f}"
+            group_title = f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF: {avg_rf_score:.2f} | ISO: {avg_iso_score:.2f}"
             with st.expander(group_title):
                 # create a unique, reproducible key
                 group_id = f"{src_ip}_{dst_ip}_{proto}_{group_time.strftime('%Y-%m-%d_%H:%M:%S')}"
