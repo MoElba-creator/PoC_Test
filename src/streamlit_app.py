@@ -48,7 +48,7 @@ def check_login():
             if username == correct_username and bcrypt.checkpw(password.encode("utf-8"), correct_password_hash):
                 st.session_state.authenticated = True
                 st.session_state.login_attempts = 0
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.session_state.last_attempt_time = now
                 st.session_state.login_attempts += 1
