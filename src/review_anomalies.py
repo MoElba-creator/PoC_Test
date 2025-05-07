@@ -104,7 +104,7 @@ if end_dt < start_dt:
 if st.sidebar.button("📥 Download filtered feedback"):
     feedback_query = {
         "bool": {
-            "must_not": [{"term": {"user_feedback.keyword": "onbekend"}}],
+            "must_not": [{"term": {"user_feedback.keyword": "unkown"}}],
             "filter": [
                 {"range": {"@timestamp": {"gte": start_dt.isoformat(), "lte": end_dt.isoformat()}}}
             ]
@@ -117,7 +117,7 @@ if st.sidebar.button("📥 Download filtered feedback"):
                 "bool": {
                     "must": [
                         {"ids": {"values": [doc_id_filter]}},
-                        {"bool": {"must_not": [{"term": {"user_feedback.keyword": "onbekend"}}]}}
+                        {"bool": {"must_not": [{"term": {"user_feedback.keyword": "unkown"}}]}}
                     ]
                 }
             },
@@ -176,7 +176,7 @@ try:
         base_query = {
             "bool": {
                 "must": [
-                    {"term": {"user_feedback.keyword": "onbekend"}},
+                    {"term": {"user_feedback.keyword": "unkown"}},
                     {"range": {"@timestamp": {"gte": start_dt.isoformat(), "lte": end_dt.isoformat()}}}
                 ]
             }
