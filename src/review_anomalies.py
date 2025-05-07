@@ -7,7 +7,28 @@ from collections import defaultdict
 import json
 from PIL import Image
 
-# Elasticsearch veilige connectie aanmaken
+# Login for security reasons
+def check_login():
+    correct_username = os.getenv["LOGIN_USER"]
+    correct_password = os.getenv["LOGIN_PASS"]
+
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if not st.session_state.authenticated:
+        with st.form("Login"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Login")
+            if submitted and username == correct_username and password == correct_password:
+                st.session_state.authenticated = True
+            else:
+                st.error("Invalid credentials")
+        st.stop()
+
+    check_login()
+
+# Elasticsearch connection
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
 ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
 INDEX_NAME = "network-anomalies"
@@ -19,7 +40,7 @@ es = Elasticsearch(
     request_timeout=30
 )
 
-#2 UI-instellingen gebruiksvriendelijk maken
+#2 UX
 
 logo = Image.open("images/logo_vives.png").convert("RGBA")
 white_bg = Image.new("RGBA", logo.size, (255, 255, 255, 255))

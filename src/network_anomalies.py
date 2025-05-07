@@ -5,53 +5,49 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk, BulkIndexError
 from dotenv import load_dotenv
 
-# === 1. Configuratie ===
+# Configuration
 load_dotenv()
 
 ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
 INDEX_NAME = "network-anomalies"
-INPUT_JSON = "../data/voorspelde_anomalieën_gefilterd.json"
+INPUT_JSON = "../data/predicted_anomalies.json"
 
-# === 2. Elasticsearch connectie via API key ===
+#lasticsearch connection with API key
 es = Elasticsearch(
     ES_HOST,
     api_key=ES_API_KEY,
-    verify_certs=True  # zorg dat SSL correct werkt, anders tijdelijk False in test
+    verify_certs=True
 )
 
-# === 3. JSON-data inladen ===
+# JSON load
 with open(INPUT_JSON, "r", encoding="utf-8") as f:
     records = json.load(f)
 
-print(f"📥 Ingeladen records uit JSON: {len(records)}")
+print(f"JSON records loaded: {len(records)}")
 
-# === 4. Conversie naar Pandas DataFrame ===
+# Panda dataframe
 df = pd.DataFrame(records)
 
-# === 5. Kolomtransformaties en defaults ===
-# Puntjes in kolomnamen vervangen voor Elasticsearch
+# Underscore replace for Elasticserach export
 df.columns = [col.replace(".", "_") for col in df.columns]
 
-# Voeg eventueel ontbrekende kolommen toe voor feedback loop
+# User feedback
 if "user_feedback" not in df.columns:
-    df["user_feedback"] = "onbekend"
+    df["user_feedback"] = "unknown"
 else:
-    df["user_feedback"] = df["user_feedback"].fillna("onbekend")
+    df["user_feedback"] = df["user_feedback"].fillna("unknown")
 
 if "reviewed" not in df.columns:
     df["reviewed"] = False
 else:
     df["reviewed"] = df["reviewed"].fillna(False)
 
-# Voor alles wat nog onbekend is
-df = df.fillna("onbekend")
+df = df.fillna("unknown")
 
+df = df.fillna("unknown")
 
-# Vermijd lege waarden
-df = df.fillna("onbekend")
-
-# === 6. Conversie naar Elasticsearch-bulkformaat ===
+# Conversion to elasticsearch format
 def df_to_elastic_format(df, index_name):
     for _, row in df.iterrows():
         yield {
@@ -59,11 +55,12 @@ def df_to_elastic_format(df, index_name):
             "_source": row.to_dict()
         }
 
-# === 7. Verzenden naar Elasticsearch ===
+# Send to Elasticsearch
 try:
     success, _ = bulk(es, df_to_elastic_format(df, INDEX_NAME))
-    print(f"✅ {success} records succesvol geüpload naar: {INDEX_NAME}")
+    print(f""
+          f"{success} records succesfully uploaded to : {INDEX_NAME}")
 except BulkIndexError as e:
-    print(f"❌ {len(e.errors)} documenten konden niet geüpload worden.")
+    print(f"{len(e.errors)} failed to send.")
     for err in e.errors[:5]:
         print(json.dumps(err, indent=2))
