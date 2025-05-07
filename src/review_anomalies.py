@@ -77,6 +77,11 @@ doc_id_filter = st.sidebar.text_input("Search on unique log ID", value=st.sessio
 source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.get("source_ip", ""), key="source_ip")
 destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.session_state.get("destination_ip", ""), key="destination_ip")
 protocol = st.sidebar.text_input("Filter on Network Protocol", value=st.session_state.get("protocol", ""), key="protocol")
+score_type = st.sidebar.selectbox("Scoretype for filtering and color",
+ options=["RF", "ISO", "Hybrid"],
+    index=2,
+    key="score_type"
+)
 
 if "score_threshold" not in st.session_state:
     st.session_state["score_threshold"] = 0.0
@@ -161,7 +166,7 @@ if st.sidebar.button("📥 Download filtered feedback"):
 # Retrieve flagged logging data from Elasticsearch index
 try:
     if doc_id_filter:
-        # Zoek exact op document _id
+        # Filter on id
         query = {
             "query": {
                 "ids": {
@@ -172,7 +177,7 @@ try:
         res = es.search(index=INDEX_NAME, body=query)
         hits = res["hits"]["hits"]
     else:
-        # Normale query met filters
+        # Normal query
         base_query = {
             "bool": {
                 "must": [
@@ -228,6 +233,15 @@ try:
             if not doc_id_filter and hybrid_score < score_threshold:
                 continue
 
+            if score_type == "RF":
+                selected_score = avg_rf_score
+            elif score_type == "ISO":
+                selected_score = avg_iso_score
+            else:
+                selected_score = hybrid_score
+
+            if not doc_id_filter and selected_score < score_threshold:
+                continue
             color = "🟢"
             if hybrid_score > 0.9:
                 color = "🔴"
@@ -235,7 +249,11 @@ try:
                 color = "🟠"
 
             orphan_label = "Single log | " if len(items) == 1 else "Grouped logs | "
-            group_title = f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | RF: {avg_rf_score:.2f} | ISO: {avg_iso_score:.2f}"
+            group_title = (
+                f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | "
+                f"{proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | "
+                f"RF: {avg_rf_score:.2f} | ISO: {avg_iso_score:.2f} | Selected: {selected_score:.2f}"
+            )
             with st.expander(group_title):
                 # create a unique, reproducible key
                 group_id = f"{src_ip}_{dst_ip}_{proto}_{group_time.strftime('%Y-%m-%d_%H:%M:%S')}"
