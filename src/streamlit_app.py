@@ -3,7 +3,8 @@ from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 import os
 from pathlib import Path
-from datetime import datetime, time
+from datetime import datetime, time as dt_time
+import time
 from collections import defaultdict
 import json
 from PIL import Image
@@ -131,9 +132,9 @@ max_logs = st.sidebar.slider("Maximum shown logs", min_value=1, max_value=1000, 
 
 st.sidebar.markdown("📅 Filter on log date")
 start_date = st.sidebar.date_input("Start date")
-start_time = st.sidebar.time_input("Start Time", value=time(0, 0))
+start_time = st.sidebar.time_input("Start Time", value=dt_time(0, 0))
 end_date = st.sidebar.date_input("End date")
-end_time = st.sidebar.time_input("End Time", value=time(23, 59))
+end_time = st.sidebar.time_input("End Time", value=dt_time(23, 59))
 
 start_dt = datetime.combine(start_date, start_time)
 end_dt = datetime.combine(end_date, end_time)
