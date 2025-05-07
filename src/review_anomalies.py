@@ -26,7 +26,7 @@ def check_login():
                 st.error("Invalid credentials")
         st.stop()
 
-    check_login()
+check_login()
 
 # Elasticsearch connection
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
@@ -104,7 +104,7 @@ if end_dt < start_dt:
 if st.sidebar.button("📥 Download filtered feedback"):
     feedback_query = {
         "bool": {
-            "must_not": [{"term": {"user_feedback.keyword": "unkown"}}],
+            "must_not": [{"term": {"user_feedback.keyword": "unknown"}}],
             "filter": [
                 {"range": {"@timestamp": {"gte": start_dt.isoformat(), "lte": end_dt.isoformat()}}}
             ]
@@ -117,7 +117,7 @@ if st.sidebar.button("📥 Download filtered feedback"):
                 "bool": {
                     "must": [
                         {"ids": {"values": [doc_id_filter]}},
-                        {"bool": {"must_not": [{"term": {"user_feedback.keyword": "unkown"}}]}}
+                        {"bool": {"must_not": [{"term": {"user_feedback.keyword": "unknown"}}]}}
                     ]
                 }
             },
@@ -176,7 +176,7 @@ try:
         base_query = {
             "bool": {
                 "must": [
-                    {"term": {"user_feedback.keyword": "unkown"}},
+                    {"term": {"user_feedback.keyword": "unknown"}},
                     {"range": {"@timestamp": {"gte": start_dt.isoformat(), "lte": end_dt.isoformat()}}}
                 ]
             }
