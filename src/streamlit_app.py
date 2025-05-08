@@ -64,9 +64,9 @@ def check_login():
 check_login()
 
 # --- Sidebar Filters First (important for datetime vars) ---
-st.sidebar.title("Filtering")
+st.sidebar.title("🔄 Filtering")
 
-if st.sidebar.button("\U0001F504 Reset filters"):
+if st.sidebar.button("Reset filters"):
     st.session_state["group_filter_option"] = "Show all"
     st.session_state["doc_id_filter"] = ""
     st.session_state["source_ip"] = ""
@@ -164,30 +164,6 @@ else:
     st.info("Showing logs flagged by the model as an anomaly. Once feedback is given the log disappears from this view.")
     INDEX_NAME = ANOMALY_INDEX
 
-# Sidebar filters
-st.sidebar.title("Filtering")
-
-if st.sidebar.button("🔄 Reset filters"):
-    st.session_state["group_filter_option"] = "Show all"
-    st.session_state["doc_id_filter"] = ""
-    st.session_state["source_ip"] = ""
-    st.session_state["destination_ip"] = ""
-    st.session_state["protocol"] = ""
-    st.session_state["score_threshold"] = 0.0
-
-group_filter_option = st.sidebar.selectbox("Group filter", ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"], key="group_filter_option")
-doc_id_filter = st.sidebar.text_input("Search on unique log ID", key="doc_id_filter").strip()
-source_ip = st.sidebar.text_input("Filter on Source IP", key="source_ip")
-destination_ip = st.sidebar.text_input("Filter on Destination IP", key="destination_ip")
-protocol = st.sidebar.text_input("Filter on Network Protocol", key="protocol")
-score_type = st.sidebar.selectbox("Select ML-modelscore for filtering", options=["No filtering", "RF", "ISO", "XGBoost", "Logistic", "Average of all"], index=0, key="score_type")
-
-score_threshold = st.sidebar.slider("Minimum average score", min_value=0.0, max_value=1.0, step=0.01, key="score_threshold")
-max_logs = st.sidebar.slider("Maximum shown logs", min_value=1, max_value=1000, value=100)
-MAX_SAFE_LOGS = 200
-if max_logs > MAX_SAFE_LOGS:
-    st.warning(f"Showing more than {MAX_SAFE_LOGS} logs may slow down performance.")
-    max_logs = MAX_SAFE_LOGS
 
 # Query Elasticsearch
 try:
