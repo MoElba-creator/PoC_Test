@@ -225,7 +225,15 @@ try:
                 color = "🟠"
 
             orphan_label = "Single log | " if len(items) == 1 else "Grouped logs | "
-            group_title = f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | {score_type}: {selected_score:.2f}"
+            if selected_score is not None:
+                score_text = f"{score_type}: {selected_score:.2f}"
+            else:
+                score_text = "No score filtering"
+
+            group_title = (
+                f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | "
+                f"{proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | {score_text}"
+            )
 
             with st.expander(group_title):
                 group_id = f"{src_ip}_{dst_ip}_{proto}_{group_time.strftime('%Y-%m-%d_%H:%M:%S')}"
