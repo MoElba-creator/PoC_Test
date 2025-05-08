@@ -48,11 +48,21 @@ try:
         start_dt = datetime.fromisoformat(from_ts)
         end_dt = datetime.fromisoformat(to_ts)
 
+        start_date = start_dt.date()
+        start_time = start_dt.time().replace(second=0, microsecond=0)
+        end_date = end_dt.date()
+        end_time = end_dt.time().replace(second=0, microsecond=0)
+
+        st.sidebar.date_input("Start date", value=start_date, key="url_start_date")
+        st.sidebar.time_input("Start Time", value=start_time, key="url_start_time")
+        st.sidebar.date_input("End date", value=end_date, key="url_end_date")
+        st.sidebar.time_input("End Time", value=end_time, key="url_end_time")
+
         st.sidebar.info(
             f"📅 Filter auto-set from dashboard: {start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%H:%M')}"
         )
 
-        if st.sidebar.button("🔄 Clear dashboard filter"):
+        if st.sidebar.button("Clear dashboard filter"):
             st.experimental_set_query_params()  # Clears all query params
             st.rerun()
     else:
