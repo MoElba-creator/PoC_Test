@@ -42,7 +42,7 @@ all_docs = []
 # Fetch logs
 for start_time in start_times:
     end_time = start_time + duration
-    print(f"📡 Logs fetching from {start_time.isoformat()} until {end_time.isoformat()}...")
+    print(f"Logs fetching from {start_time.isoformat()} until {end_time.isoformat()}...")
 
     query = {
         "query": {

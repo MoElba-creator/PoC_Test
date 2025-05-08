@@ -123,6 +123,10 @@ score_type = st.sidebar.selectbox("Select ML-modelscore for filtering", options=
 
 score_threshold = st.sidebar.slider("Minimum average score", min_value=0.0, max_value=1.0, step=0.01, key="score_threshold")
 max_logs = st.sidebar.slider("Maximum shown logs", min_value=1, max_value=1000, value=100)
+MAX_SAFE_LOGS = 200
+if max_logs > MAX_SAFE_LOGS:
+    st.warning(f"Showing more than {MAX_SAFE_LOGS} logs may slow down performance.")
+    max_logs = MAX_SAFE_LOGS
 
 st.sidebar.markdown("📅 Filter on log date")
 start_date = st.sidebar.date_input("Start date")
@@ -158,8 +162,13 @@ try:
             base_query["bool"]["must"].append({"term": {"network_transport.keyword": protocol}})
 
         query = { "query": base_query, "size": max_logs, "sort": [{"@timestamp": {"order": "desc"}}] }
-        res = es.search(index=INDEX_NAME, body=query)
-        hits = res["hits"]["hits"]
+
+
+        @st.cache_data(ttl=300)
+        def query_elasticsearch(index_name, query):
+            return es.search(index=index_name, body=query)["hits"]["hits"]
+
+        hits = query_elasticsearch(INDEX_NAME, query)
 
     if not hits:
         st.success("✅ No anomalies were found. Consider adjusting the filters.")
@@ -231,6 +240,12 @@ try:
                         st.warning("✔️ Marked as normal")
                         st.rerun()
                 if show_false_negatives:
+
+                    if score_threshold < 0.7:
+                        st.warning(
+                            "⚠️ Viewing false negatives requires a higher minimum score (>= 0.7) to avoid slowdowns.")
+                        st.stop()
+
                     if st.button(f"🕵️ Mark as missed anomaly", key=f"group_fn_{group_id}"):
                         for doc_id, log in items:
                             es.index(index=ANOMALY_INDEX, document={**log, "user_feedback": "correct", "reviewed": True})
@@ -240,7 +255,9 @@ try:
 
                 for doc_id, source in items:
                     st.markdown(f"** Log** `{source.get('@timestamp', '?')}` —  `{doc_id}`")
-                    st.json(source)
+                    with st.expander("🔎 View full log details"):
+                        st.code(json.dumps(source, indent=2), language="json")
+
 
 except NotFoundError:
     st.error(f"Index '{INDEX_NAME}' does not exist.")
