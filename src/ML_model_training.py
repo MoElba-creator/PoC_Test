@@ -77,7 +77,12 @@ evaluate("XGBoost", y_test, y_xgb)
 # Save models and encoder
 joblib.dump(rf, "../models/random_forest_model.pkl")
 joblib.dump(log, "../models/logistic_regression_model.pkl")
-joblib.dump(xgb, "../models/xgboost_model.pkl")
+xgb_bundle = {
+    "model": xgb,
+    "encoder": encoder,
+    "columns": X_train.columns.tolist()
+}
+joblib.dump(xgb_bundle, "../models/xgboost_model.pkl")
 joblib.dump(encoder, "../models/ip_encoder_hashing.pkl")
 
 print("\nAll models are trained and saved!")

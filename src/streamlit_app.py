@@ -196,7 +196,7 @@ try:
 
             rf_scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
             iso_scores = [s.get("isoforest_score", 0) for _, s in items if isinstance(s.get("isoforest_score", 0), (int, float))]
-            xgb_scores = [s.get("xgboost_score", 0) for _, s in items if isinstance(s.get("xgboost_score", 0), (int, float))]
+            xgb_scores = [s.get("XGB_score", 0) for _, s in items if isinstance(s.get("XGB_score", 0), (int, float))]
             log_scores = [s.get("logistic_score", 0) for _, s in items if isinstance(s.get("logistic_score", 0), (int, float))]
 
             avg_rf = sum(rf_scores) / len(rf_scores) if rf_scores else 0
