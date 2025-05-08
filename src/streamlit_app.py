@@ -17,7 +17,11 @@ load_dotenv()
 
 def check_login():
     correct_username = os.getenv("LOGIN_USER")
-    correct_password_hash = os.getenv("LOGIN_PASS_HASH").encode("utf-8")
+    raw_hash = os.getenv("LOGIN_PASS_HASH")
+    if not raw_hash:
+        st.error("LOGIN_PASS_HASH environment variable is not set.")
+        st.stop()
+    correct_password_hash = raw_hash.encode("utf-8")
 
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
@@ -27,8 +31,8 @@ def check_login():
         st.session_state.last_attempt_time = 0
 
     if st.session_state.authenticated:
-        st.sidebar.success(f"🔓 Logged in as {correct_username}")
-        if st.sidebar.button("🔒 Logout"):
+        st.sidebar.success(f"Logged in as {correct_username}")
+        if st.sidebar.button("Logout"):
             st.session_state.authenticated = False
             st.rerun()
         return
@@ -41,7 +45,7 @@ def check_login():
         if submitted:
             now = time.time()
             if now - st.session_state.last_attempt_time < 5:
-                st.error("Please wait a few seconds before trying again.")
+                st.error("Please wait  before trying again.")
                 st.stop()
 
             if username == correct_username and bcrypt.checkpw(password.encode("utf-8"), correct_password_hash):
@@ -58,9 +62,9 @@ def check_login():
 
 check_login()
 
-# ✅ Index names
+# Index names
 ANOMALY_INDEX = "network-anomalies"
-ALL_LOGS_INDEX = "network-logs-all-evaluated"
+ALL_LOGS_INDEX = "network-anomalies-all"
 
 # 🔌 Elasticsearch connection
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
@@ -89,14 +93,14 @@ with col1:
 with col2:
     st.title("Network logging anomalies review")
 
-# 🧠 Toggle false negative view
-show_false_negatives = st.sidebar.checkbox("🔍 Show false negatives (missed by model)", value=False)
+#  Toggle false negative view
+show_false_negatives = st.sidebar.checkbox("Show false negatives", value=False)
 
 if show_false_negatives:
-    st.info("🟡 Showing logs that were not flagged by the model. You can mark them as false negatives to move them to the anomaly index.")
+    st.info("Showing logs that were not flagged by the model. You can mark them as false negatives to move them to the anomaly index for retraining.")
     INDEX_NAME = ALL_LOGS_INDEX
 else:
-    st.info("📊 Showing logs flagged by the model as anomalous. Once feedback is given, the log disappears from this view.")
+    st.info("Showing logs flagged by the model as an anomaly. Once feedback is given the log disappears from this view.")
     INDEX_NAME = ANOMALY_INDEX
 
 # Sidebar filters
@@ -131,7 +135,7 @@ end_dt = datetime.combine(end_date, end_time)
 if end_dt < start_dt:
     end_dt = start_dt
 
-# 🔍 Query Elasticsearch
+# Query Elasticsearch
 try:
     if doc_id_filter:
         query = { "query": { "ids": { "values": [doc_id_filter] } } }
@@ -227,15 +231,15 @@ try:
                         st.warning("✔️ Marked as normal")
                         st.rerun()
                 if show_false_negatives:
-                    if st.button(f"🚨 Mark as missed anomaly", key=f"group_fn_{group_id}"):
+                    if st.button(f"🕵️ Mark as missed anomaly", key=f"group_fn_{group_id}"):
                         for doc_id, log in items:
                             es.index(index=ANOMALY_INDEX, document={**log, "user_feedback": "correct", "reviewed": True})
                             es.update(index=ALL_LOGS_INDEX, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True}})
-                        st.success("🚨 False negative promoted to anomaly index.")
+                        st.success("✔️ False negative promoted to anomaly index.")
                         st.rerun()
 
                 for doc_id, source in items:
-                    st.markdown(f"**📄 Log** `{source.get('@timestamp', '?')}` — 🆔 `{doc_id}`")
+                    st.markdown(f"** Log** `{source.get('@timestamp', '?')}` —  `{doc_id}`")
                     st.json(source)
 
 except NotFoundError:

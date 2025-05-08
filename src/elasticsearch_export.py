@@ -12,7 +12,7 @@ ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
 INDEX_NAME = "network-anomalies"
 INPUT_JSON = "../data/predicted_anomalies.json"
-ALL_LOGS_INDEX = "network-logs-all-evaluated"
+ALL_LOGS_INDEX = "network-anomalies-all"
 ALL_LOGS_JSON = "../data/all_evaluated_logs.json"
 
 #lasticsearch connection with API key
