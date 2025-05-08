@@ -47,23 +47,14 @@ df_selected = df_selected.dropna()
 print("Number of rows after cleanup: ", len(df_selected))
 
 # Encode for unsupervised model
-X_unlabeled = df_selected.copy()
-for col in X_unlabeled.select_dtypes(include=["object"]).columns:
-    X_unlabeled[col] = X_unlabeled[col].astype(str)
-
-encoder_unsupervised = HashingEncoder(n_components=8)
-X_unlabeled_encoded = encoder_unsupervised.fit_transform(X_unlabeled)
 
 # Isolation Forest scoring
 iso_forest = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
-df.loc[df_selected.index, "isoforest_score"] = iso_forest.fit_predict(X_unlabeled_encoded)
-df.loc[df_selected.index, "isoforest_score"] = iso_forest.decision_function(X_unlabeled_encoded)
 
 # Retrain encoder directly on relevant fields
 encoder_input_columns = ["source.ip", "destination.ip", "network.transport", "event.action"]
 
-encoder = HashingEncoder(cols=encoder_input_columns, n_components=8)
-encoder.fit(df_selected[encoder_input_columns])
+encoder = joblib.load("../models/ip_encoder_hashing.pkl")
 
 
 # Select only the columns the encoder was trained on
@@ -76,6 +67,12 @@ X_encoded["destination.port"] = df_selected["destination.port"]
 X_encoded["session.iflow_bytes"] = df_selected["session.iflow_bytes"]
 X_encoded["session.iflow_pkts"] = df_selected["session.iflow_pkts"]
 
+# Compute Isolation Forest score using same feature set
+iso_forest = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
+iso_forest.fit(X_encoded.drop(columns=["isoforest_score"], errors="ignore"))  # Just in case it's already there
+df.loc[df_selected.index, "isoforest_score"] = iso_forest.decision_function(X_encoded.drop(columns=["isoforest_score"], errors="ignore"))
+
+# Add the score into the encoded input for prediction
 X_encoded["isoforest_score"] = df.loc[df_selected.index, "isoforest_score"]
 
 
