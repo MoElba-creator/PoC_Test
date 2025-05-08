@@ -15,12 +15,10 @@ st.set_page_config(page_title="VIVES Network logging anomalies review", layout="
 
 load_dotenv()
 
-# Login for security reasons
 def check_login():
     correct_username = os.getenv("LOGIN_USER")
     correct_password_hash = os.getenv("LOGIN_PASS_HASH").encode("utf-8")
 
-    # Initialize session state
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
     if "login_attempts" not in st.session_state:
@@ -28,7 +26,6 @@ def check_login():
     if "last_attempt_time" not in st.session_state:
         st.session_state.last_attempt_time = 0
 
-    # If already authenticated, show logout
     if st.session_state.authenticated:
         st.sidebar.success(f"🔓 Logged in as {correct_username}")
         if st.sidebar.button("🔒 Logout"):
@@ -36,7 +33,6 @@ def check_login():
             st.rerun()
         return
 
-    # Login form
     with st.form("Login"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
@@ -62,10 +58,13 @@ def check_login():
 
 check_login()
 
-# Elasticsearch connection
+# ✅ Index names
+ANOMALY_INDEX = "network-anomalies"
+ALL_LOGS_INDEX = "network-logs-all-evaluated"
+
+# 🔌 Elasticsearch connection
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
 ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
-INDEX_NAME = "network-anomalies"
 
 es = Elasticsearch(
     hosts=[ES_HOST],
@@ -74,8 +73,7 @@ es = Elasticsearch(
     request_timeout=30
 )
 
-#2 UX
-
+# 🖼 Logo
 logo_path = Path(__file__).resolve().parent.parent / "images" / "logo_vives.png"
 if not logo_path.exists():
     st.error(f"Logo not found at: {logo_path}")
@@ -90,12 +88,20 @@ with col1:
     st.image(white_logo, use_container_width=True)
 with col2:
     st.title("Network logging anomalies review")
-st.info("Consult anomaly logging. Once feedback is given the log is not visible anymore.")
+
+# 🧠 Toggle false negative view
+show_false_negatives = st.sidebar.checkbox("🔍 Show false negatives (missed by model)", value=False)
+
+if show_false_negatives:
+    st.info("🟡 Showing logs that were not flagged by the model. You can mark them as false negatives to move them to the anomaly index.")
+    INDEX_NAME = ALL_LOGS_INDEX
+else:
+    st.info("📊 Showing logs flagged by the model as anomalous. Once feedback is given, the log disappears from this view.")
+    INDEX_NAME = ANOMALY_INDEX
 
 # Sidebar filters
 st.sidebar.title("Filtering")
 
-# Sidebar: Reset filters
 if st.sidebar.button("🔄 Reset filters"):
     st.session_state["group_filter_option"] = "Show all"
     st.session_state["doc_id_filter"] = ""
@@ -104,32 +110,14 @@ if st.sidebar.button("🔄 Reset filters"):
     st.session_state["protocol"] = ""
     st.session_state["score_threshold"] = 0.0
 
+group_filter_option = st.sidebar.selectbox("Group filter", ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"], key="group_filter_option")
+doc_id_filter = st.sidebar.text_input("Search on unique log ID", key="doc_id_filter")
+source_ip = st.sidebar.text_input("Filter on Source IP", key="source_ip")
+destination_ip = st.sidebar.text_input("Filter on Destination IP", key="destination_ip")
+protocol = st.sidebar.text_input("Filter on Network Protocol", key="protocol")
+score_type = st.sidebar.selectbox("Select ML-modelscore for filtering", options=["No filtering", "RF", "ISO", "XGBoost", "Logistic", "Average of all"], index=0, key="score_type")
 
-# Sidebar: Define filters with session state keys
-group_filter_option = st.sidebar.selectbox(
-    "Group filter",
-    ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"],
-    key="group_filter_option"
-)
-doc_id_filter = st.sidebar.text_input("Search on unique log ID", value=st.session_state.get("doc_id_filter", ""), key="doc_id_filter")
-source_ip = st.sidebar.text_input("Filter on Source IP", value=st.session_state.get("source_ip", ""), key="source_ip")
-destination_ip = st.sidebar.text_input("Filter on Destination IP", value=st.session_state.get("destination_ip", ""), key="destination_ip")
-protocol = st.sidebar.text_input("Filter on Network Protocol", value=st.session_state.get("protocol", ""), key="protocol")
-score_type = st.sidebar.selectbox(
-    "Select ML-modelscore for filtering",
-    options=["No filtering", "RF", "ISO", "XGBoost", "Logistic", "Average of all"],
-    index=0,
-    key="score_type"
-)
-
-if "score_threshold" not in st.session_state:
-    st.session_state["score_threshold"] = 0.0
-
-score_threshold = st.sidebar.slider(
-    "Minimum average score", min_value=0.0, max_value=1.0,
-    step=0.01, key="score_threshold"
-)
-
+score_threshold = st.sidebar.slider("Minimum average score", min_value=0.0, max_value=1.0, step=0.01, key="score_threshold")
 max_logs = st.sidebar.slider("Maximum shown logs", min_value=1, max_value=1000, value=100)
 
 st.sidebar.markdown("📅 Filter on log date")
@@ -143,80 +131,13 @@ end_dt = datetime.combine(end_date, end_time)
 if end_dt < start_dt:
     end_dt = start_dt
 
-
-# Feedback download in JSON
-if st.sidebar.button("📥 Download filtered feedback"):
-    feedback_query = {
-        "bool": {
-            "must_not": [{"term": {"user_feedback.keyword": "unknown"}}],
-            "filter": [
-                {"range": {"@timestamp": {"gte": start_dt.isoformat(), "lte": end_dt.isoformat()}}}
-            ]
-        }
-    }
-
-    if doc_id_filter:
-        query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"ids": {"values": [doc_id_filter]}},
-                        {"bool": {"must_not": [{"term": {"user_feedback.keyword": "unknown"}}]}}
-                    ]
-                }
-            },
-            "size": 1
-        }
-
-    else:
-        if source_ip:
-            feedback_query["filter"].append({"term": {"source_ip.keyword": source_ip}})
-        if destination_ip:
-            feedback_query["filter"].append({"term": {"destination_ip.keyword": destination_ip}})
-        if protocol:
-            feedback_query["filter"].append({"term": {"network_transport.keyword": protocol}})
-        if score_threshold > 0:
-            feedback_query["filter"].append({"range": {"RF_score": {"gte": score_threshold}}})
-
-        query = {
-            "query": feedback_query,
-            "size": 10000,
-            "sort": [{"@timestamp": {"order": "desc"}}]
-        }
-
-    try:
-        res = es.search(index=INDEX_NAME, body=query)
-        filtered_hits = [
-            {**hit["_source"], "_id": hit["_id"]}
-            for hit in res["hits"]["hits"]
-        ]
-        feedback_json = json.dumps(filtered_hits, indent=2)
-
-        st.sidebar.download_button(
-            label="Download filtered_feedback.json",
-            data=feedback_json,
-            file_name="filtered_feedback.json",
-            mime="application/json"
-        )
-    except Exception as e:
-        st.sidebar.error(f"Download failed: {e}")
-
-
-# Retrieve flagged logging data from Elasticsearch index
+# 🔍 Query Elasticsearch
 try:
     if doc_id_filter:
-        # Filter on id
-        query = {
-            "query": {
-                "ids": {
-                    "values": [doc_id_filter]
-                }
-            }
-        }
+        query = { "query": { "ids": { "values": [doc_id_filter] } } }
         res = es.search(index=INDEX_NAME, body=query)
         hits = res["hits"]["hits"]
     else:
-        # Normal query
         base_query = {
             "bool": {
                 "must": [
@@ -232,11 +153,7 @@ try:
         if protocol:
             base_query["bool"]["must"].append({"term": {"network_transport.keyword": protocol}})
 
-        query = {
-            "query": base_query,
-            "size": max_logs,
-            "sort": [{"@timestamp": {"order": "desc"}}]
-        }
+        query = { "query": base_query, "size": max_logs, "sort": [{"@timestamp": {"order": "desc"}}] }
         res = es.search(index=INDEX_NAME, body=query)
         hits = res["hits"]["hits"]
 
@@ -262,38 +179,29 @@ try:
                 continue
 
             rf_scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
-            iso_scores = [s.get("isoforest_score", 0) for _, s in items if
-                          isinstance(s.get("isoforest_score", 0), (int, float))]
-            xgb_scores = [s.get("xgboost_score", 0) for _, s in items if
-                          isinstance(s.get("xgboost_score", 0), (int, float))]
-            log_scores = [s.get("logistic_score", 0) for _, s in items if
-                          isinstance(s.get("logistic_score", 0), (int, float))]
+            iso_scores = [s.get("isoforest_score", 0) for _, s in items if isinstance(s.get("isoforest_score", 0), (int, float))]
+            xgb_scores = [s.get("xgboost_score", 0) for _, s in items if isinstance(s.get("xgboost_score", 0), (int, float))]
+            log_scores = [s.get("logistic_score", 0) for _, s in items if isinstance(s.get("logistic_score", 0), (int, float))]
 
-            # Gemiddelde score per model
             avg_rf = sum(rf_scores) / len(rf_scores) if rf_scores else 0
             avg_iso = sum(iso_scores) / len(iso_scores) if iso_scores else 0
             avg_xgb = sum(xgb_scores) / len(xgb_scores) if xgb_scores else 0
             avg_log = sum(log_scores) / len(log_scores) if log_scores else 0
-
-            # Gemiddelde over alle modellen
             avg_all = (avg_rf + avg_iso + avg_xgb + avg_log) / 4
 
-            # Bepaal geselecteerde score op basis van de keuze in de sidebar
             score_map = {
                 "RF": avg_rf,
                 "ISO": avg_iso,
                 "XGBoost": avg_xgb,
                 "Logistic": avg_log,
-                "Average of all": source.get("model_score", 0),
+                "Average of all": avg_all,
                 "No filtering": None
             }
             selected_score = score_map.get(score_type, None)
 
-            # Filter uitschakelen als gekozen is voor "No filtering"
             if score_type != "No filtering" and selected_score is not None and selected_score < score_threshold:
                 continue
 
-            # Kleurindicator gebaseerd op geselecteerde score
             color = "🟢"
             if selected_score is not None and selected_score > 0.9:
                 color = "🔴"
@@ -301,32 +209,29 @@ try:
                 color = "🟠"
 
             orphan_label = "Single log | " if len(items) == 1 else "Grouped logs | "
-            group_title = (
-                f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | "
-                f"{proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | "
-                f"{score_type}: {selected_score:.2f}"
-            )
+            group_title = f"{orphan_label}{color} {group_time.strftime('%Y-%m-%d %H:%M')} | {proto} | {src_ip} ➜ {dst_ip} | logs: {len(items)} | {score_type}: {selected_score:.2f}"
 
             with st.expander(group_title):
-                # create a unique, reproducible key
                 group_id = f"{src_ip}_{dst_ip}_{proto}_{group_time.strftime('%Y-%m-%d_%H:%M:%S')}"
-
                 col1, col2 = st.columns([1, 1])
                 with col1:
                     if st.button(f"🕵️ Mark as suspicious", key=f"group_yes_{group_id}"):
                         for doc_id, _ in items:
-                            es.update(index=INDEX_NAME, id=doc_id, body={
-                                "doc": {"user_feedback": "correct", "reviewed": True}
-                            })
-                        st.success("✔️ Marked as suspicious successful")
+                            es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True}})
+                        st.success("✔️ Marked as suspicious")
                         st.rerun()
                 with col2:
-                    if st.button(f"✅ Mark as normal behavior", key=f"group_no_{group_id}"):
+                    if st.button(f"✅ Mark as normal", key=f"group_no_{group_id}"):
                         for doc_id, _ in items:
-                            es.update(index=INDEX_NAME, id=doc_id, body={
-                                "doc": {"user_feedback": "incorrect", "reviewed": True}
-                            })
-                        st.warning("️️️✔️ Marked as normal behavior")
+                            es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "incorrect", "reviewed": True}})
+                        st.warning("✔️ Marked as normal")
+                        st.rerun()
+                if show_false_negatives:
+                    if st.button(f"🚨 Mark as missed anomaly", key=f"group_fn_{group_id}"):
+                        for doc_id, log in items:
+                            es.index(index=ANOMALY_INDEX, document={**log, "user_feedback": "correct", "reviewed": True})
+                            es.update(index=ALL_LOGS_INDEX, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True}})
+                        st.success("🚨 False negative promoted to anomaly index.")
                         st.rerun()
 
                 for doc_id, source in items:
