@@ -43,12 +43,14 @@ if max_logs > MAX_SAFE_LOGS:
 qs = st.query_params
 from_ts = qs.get("from_ts", [None])[0]
 to_ts = qs.get("to_ts", [None])[0]
-
-if from_ts and to_ts:
-    start_dt = datetime.fromisoformat(from_ts)
-    end_dt = datetime.fromisoformat(to_ts)
-    st.sidebar.info(f"📅 Filter auto-set from dashboard: {start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%H:%M')}")
-else:
+try:
+    if from_ts and to_ts:
+        start_dt = datetime.fromisoformat(from_ts)
+        end_dt = datetime.fromisoformat(to_ts)
+        st.sidebar.info(f"📅 Filter auto-set from dashboard: {start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%H:%M')}")
+    else:
+        raise ValueError("Missing params")
+except Exception:
     st.sidebar.markdown("📅 Filter on log date")
     start_date = st.sidebar.date_input("Start date")
     start_time = st.sidebar.time_input("Start Time", value=dt_time(0, 0))
