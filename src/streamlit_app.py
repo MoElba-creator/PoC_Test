@@ -162,7 +162,8 @@ try:
         if protocol:
             base_query["bool"]["must"].append({"term": {"network_transport.keyword": protocol}})
 
-        query = { "query": base_query, "size": max_logs, "sort": [{"@timestamp": {"order": "desc"}}] }
+        query = { "query": base_query, "size": max_logs, "sort": [
+    {"@timestamp": {"order": "desc", "unmapped_type": "date"}}] }
 
 
         @st.cache_data(ttl=300)
