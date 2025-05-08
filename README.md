@@ -164,7 +164,7 @@ python retrain_pipeline/evaluate_models.py
 
 ## Screenshots
 
-_Add screenshots of the Streamlit dashboard here if available._
+![Streamlit Dashboard](images/streamlit.png)
 
 ---
 
