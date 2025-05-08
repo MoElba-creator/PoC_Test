@@ -88,7 +88,7 @@ if max_logs > MAX_SAFE_LOGS:
     st.warning(f"Showing more than {MAX_SAFE_LOGS} logs may slow down performance.")
     max_logs = MAX_SAFE_LOGS
 
-st.sidebar.markdown("\ud83d\udcc5 Filter on log date")
+st.sidebar.markdown("📅 Filter on log date")
 start_date = st.sidebar.date_input("Start date")
 start_time = st.sidebar.time_input("Start Time", value=dt_time(0, 0))
 end_date = st.sidebar.date_input("End date")
@@ -188,17 +188,6 @@ MAX_SAFE_LOGS = 200
 if max_logs > MAX_SAFE_LOGS:
     st.warning(f"Showing more than {MAX_SAFE_LOGS} logs may slow down performance.")
     max_logs = MAX_SAFE_LOGS
-
-st.sidebar.markdown("📅 Filter on log date")
-start_date = st.sidebar.date_input("Start date")
-start_time = st.sidebar.time_input("Start Time", value=dt_time(0, 0))
-end_date = st.sidebar.date_input("End date")
-end_time = st.sidebar.time_input("End Time", value=dt_time(23, 59))
-
-start_dt = datetime.combine(start_date, start_time)
-end_dt = datetime.combine(end_date, end_time)
-if end_dt < start_dt:
-    end_dt = start_dt
 
 # Query Elasticsearch
 try:
