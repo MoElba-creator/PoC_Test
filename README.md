@@ -1,4 +1,8 @@
-# VIVES PoC: Real-Time Network Anomaly Detection with Machine Learning
+<p align="center">
+  <img src="images/logo_vives.png" alt="VIVES Logo" width="140"/>
+</p>
+
+# VIVES PoC: Data-Driven anomaly detection in networklogs
 
 This project is a **Proof of Concept (PoC)** for real-time anomaly detection in network logs using a hybrid Machine Learning approach, built for the **IT Architecture & Security** department of **Hogeschool VIVES**.
 
