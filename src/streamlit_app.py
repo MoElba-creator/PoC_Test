@@ -259,10 +259,10 @@ try:
                 for doc_id, source in items:
                     index_label = source.get("_origin_index", "?")
                     label = "Unflagged (evaluated)" if index_label == ALL_LOGS_INDEX else "Flagged (anomaly)"
+                    label = "Unflagged (evaluated)" if index_label == ALL_LOGS_INDEX else "Flagged (anomaly)"
                     st.markdown(
                         f"** Log** `{source.get('@timestamp', '?')}` —  `{doc_id}` — {label} —  Index: `{index_label}`")
-                    with st.expander("View full log details"):
-                        st.code(json.dumps(source, indent=2), language="json")
+                    st.code(json.dumps(source, indent=2), language="json")
 
 
 
