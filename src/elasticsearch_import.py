@@ -23,11 +23,11 @@ es = Elasticsearch(
 # PoC testset
 # 10 blocks of  10 minutes spread over a weeks
 start_times = [
-    datetime(2025, 4, 15, 10, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 16, 15, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 17, 20, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 18, 2, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 20, 11, 0, tzinfo=timezone.utc),
+    datetime(2025, 5, 8, 10, 0, tzinfo=timezone.utc),
+    datetime(2025, 5, 4, 15, 0, tzinfo=timezone.utc),
+    datetime(2025, 5, 3, 20, 0, tzinfo=timezone.utc),
+    datetime(2025, 5, 5, 2, 0, tzinfo=timezone.utc),
+    datetime(2025, 5, 5, 11, 0, tzinfo=timezone.utc),
     datetime(2025, 4, 22, 9, 0, tzinfo=timezone.utc),
     datetime(2025, 4, 23, 13, 0, tzinfo=timezone.utc),
     datetime(2025, 4, 24, 17, 30, tzinfo=timezone.utc),

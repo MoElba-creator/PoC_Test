@@ -4,62 +4,13 @@ from elasticsearch.exceptions import NotFoundError
 import os
 from pathlib import Path
 from datetime import datetime, time as dt_time
-import time
 from collections import defaultdict
 import json
 from PIL import Image
-import bcrypt
-from dotenv import load_dotenv
+from core.auth import check_login
+
 
 st.set_page_config(page_title="VIVES Network logging anomalies review", layout="wide")
-
-load_dotenv()
-
-# --- Login ---
-def check_login():
-    correct_username = os.getenv("LOGIN_USER")
-    raw_hash = os.getenv("LOGIN_PASS_HASH")
-    if not raw_hash:
-        st.error("LOGIN_PASS_HASH environment variable is not set.")
-        st.stop()
-    correct_password_hash = raw_hash.encode("utf-8")
-
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-    if "login_attempts" not in st.session_state:
-        st.session_state.login_attempts = 0
-    if "last_attempt_time" not in st.session_state:
-        st.session_state.last_attempt_time = 0
-
-    if st.session_state.authenticated:
-        st.sidebar.success(f"Logged in as {correct_username}")
-        if st.sidebar.button("Logout"):
-            st.session_state.authenticated = False
-            st.rerun()
-        return
-
-    with st.form("Login"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
-
-        if submitted:
-            now = time.time()
-            if now - st.session_state.last_attempt_time < 5:
-                st.error("Please wait before trying again.")
-                st.stop()
-
-            if username == correct_username and bcrypt.checkpw(password.encode("utf-8"), correct_password_hash):
-                st.session_state.authenticated = True
-                st.session_state.login_attempts = 0
-                st.rerun()
-            else:
-                st.session_state.last_attempt_time = now
-                st.session_state.login_attempts += 1
-                st.error("Invalid credentials")
-                st.stop()
-
-    st.stop()
 
 check_login()
 
@@ -88,16 +39,26 @@ if max_logs > MAX_SAFE_LOGS:
     st.warning(f"Showing more than {MAX_SAFE_LOGS} logs may slow down performance.")
     max_logs = MAX_SAFE_LOGS
 
-st.sidebar.markdown("📅 Filter on log date")
-start_date = st.sidebar.date_input("Start date")
-start_time = st.sidebar.time_input("Start Time", value=dt_time(0, 0))
-end_date = st.sidebar.date_input("End date")
-end_time = st.sidebar.time_input("End Time", value=dt_time(23, 59))
+# --- URL-based timestamp filtering (from dashboard) ---
+qs = st.experimental_get_query_params()
+from_ts = qs.get("from_ts", [None])[0]
+to_ts = qs.get("to_ts", [None])[0]
 
-start_dt = datetime.combine(start_date, start_time)
-end_dt = datetime.combine(end_date, end_time)
-if end_dt < start_dt:
-    end_dt = start_dt
+if from_ts and to_ts:
+    start_dt = datetime.fromisoformat(from_ts)
+    end_dt = datetime.fromisoformat(to_ts)
+    st.sidebar.info(f"📅 Filter auto-set from dashboard: {start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%H:%M')}")
+else:
+    st.sidebar.markdown("📅 Filter on log date")
+    start_date = st.sidebar.date_input("Start date")
+    start_time = st.sidebar.time_input("Start Time", value=dt_time(0, 0))
+    end_date = st.sidebar.date_input("End date")
+    end_time = st.sidebar.time_input("End Time", value=dt_time(23, 59))
+
+    start_dt = datetime.combine(start_date, start_time)
+    end_dt = datetime.combine(end_date, end_time)
+    if end_dt < start_dt:
+        end_dt = start_dt
 
 # --- Indexes and connection ---
 ANOMALY_INDEX = "network-anomalies"
