@@ -40,7 +40,7 @@ if max_logs > MAX_SAFE_LOGS:
     max_logs = MAX_SAFE_LOGS
 
 # --- URL-based timestamp filtering (from dashboard) ---
-qs = st.experimental_get_query_params()
+qs = st.query_params
 from_ts = qs.get("from_ts", [None])[0]
 to_ts = qs.get("to_ts", [None])[0]
 
