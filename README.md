@@ -1,95 +1,187 @@
-#  Dummy data creatie
+# VIVES PoC: Real-Time Network Anomaly Detection with Machine Learning
 
-Dit script (`dummy_data_creatie.py`) genereert een realistische dataset van netwerkverkeer, inclusief verschillende types anomalieën. 
-Deze dummydata wordt gebruikt om een Machine Learning model te trainen voor anomaliedetectie binnen netwerklogs.
+This project is a **Proof of Concept (PoC)** for real-time anomaly detection in network logs using a hybrid Machine Learning approach, built for the **IT Architecture & Security** department of **Hogeschool VIVES**.
 
-Het script maakt volgende soortrn records aan:
-
-- Normaal netwerkverkeer: willekeurige verbindingen tussen source en destination IP’s en poorten
-- Verticale poortscans: 1 source IP probeert meerdere poorten op één bestemming
-- Horizontale poortscans: 1 source IP scant dezelfde poort op meerdere bestemmingen
-- Destination IP spikes: 1 IP krijgt plots veel verkeer op korte tijd
-- Ongebruikelijke IP-combinaties: zeldzame IP adressen die met elkaar communiceren, wat normaal nooit gebeurt
+## Project Overview
+- **Goal**: Detect port scans, unusual data transfers, and abnormal connection volumes in network logs.
+- **Environment**: Logs stored in Elasticsearch, processed with Python, and visualized through a Streamlit dashboard.
+- **Features**:
+  - Automatic anomaly detection using Isolation Forest + supervised classifiers (RF, LR, XGB).
+  - Dashboard for anomaly review and feedback.
+  - Automated retraining loop based on user feedback.
+  - Integration with Elasticsearch.
 
 ---
 
+## Project Structure
 
-Na het uitvoeren van het script, wordt de dataset opgeslagen als dummy_network_logs.csv
+```
+PoC_Test/
+├── src/
+│   ├── ML_batch_scan.py          # Runs anomaly detection using Isolation Forest
+│   ├── ML_model_training.py      # Trains supervised models (RandomForest, XGBoost, LogisticRegression)
+│   ├── dummy_data_creation.py    # Generates synthetic data with labeled anomalies
+│   ├── elasticsearch_import.py   # Fetches logs from Elasticsearch over time windows
+│   ├── elasticsearch_export.py   # Sends anomaly results back to Elasticsearch
+│   ├── feedback_creator.py       # Combines original data with user feedback for retraining
+│   └── streamlit_app.py          # Streamlit UI for viewing anomalies and collecting feedback
+│
+├── retrain_pipeline/
+│   ├── export_feedback.py        # Queries Elasticsearch for labeled anomalies
+│   ├── retrain_models.py         # Retrains models using feedback-enhanced dataset
+│   └── evaluate_models.py        # Compares candidate models vs deployed ones
+│
+├── models/                       # Folder containing saved models (.pkl files)
+├── data/                         # Contains training runs, exported datasets, feedback
+├── .env                          # API keys and credentials (not checked into git)
+├── requirements.txt             # Required Python packages
+├── Dockerfile                   # Container setup for optional deployment
+└── README.md                    # Project documentation
+```
 
+Each script is tied to a phase in the anomaly detection and feedback loop.
 
+---
 
- Wat zien we als een anomalie?
-In netwerkverkeer is een anomalie een patroon dat afwijkt van het normale gedrag. Hieronder zie je de soorten  die we bewust gesimuleerd hebben:
+## How It Works
 
-1. Verticale poortscan
-Eén source.ip scant een groot aantal verschillende poorten op één enkel destination.ip.
-Typisch het gedrag van een hacker die zoekt welke poorten openstaan op een specifieke server.
+### Data Sources
+- Logs are pulled from an Elasticsearch index (`logs-*`).
+- Simulation logs can be created with `dummy_data_creation.py` for testing.
 
-Voorbeeld:
+### Detection
+- Batch-based detection using `ML_batch_scan.py`.
+- Isolation Forest provides anomaly scores.
+- Supervised models (trained on dummy + feedback data) classify anomalies.
 
-source.ip	destination.ip	destination.port
-10.0.0.4	192.168.0.10	21
-10.0.0.4	192.168.0.10	22
-10.0.0.4	192.168.0.10	23
-..
-10.0.0.4	192.168.0.10	1050
+### Feedback
+- Detected anomalies are exported to Elasticsearch (`network-anomalies`).
+- Users provide feedback via the Streamlit app.
+- Labeled feedback is exported and used to retrain models.
 
+### Retraining Pipeline
+- `export_feedback.py`: Fetch feedback from Elasticsearch.
+- `retrain_models.py`: Train new models on full dataset.
+- `evaluate_models.py`: Compare new vs deployed models (F1-score).
 
-2. Horizontale poortscan
+---
 
+## Model & Feature Details
 
-Eén source.ip probeert dezelfde poort op veel verschillende destination.ip’s.
-Dit wijst op een poging om een bekende poort op veel systemen te vinden.
+### Models Used
+- **Isolation Forest**: Unsupervised model for anomaly scoring.
+- **Random Forest**: Robust ensemble classifier.
+- **Logistic Regression**: Baseline linear classifier.
+- **XGBoost**: High-performance gradient boosting model.
 
-Voorbeeld:
+### Feature Engineering
+- **Hashed IPs**: Source/destination IPs encoded using `HashingEncoder`.
+- **Ports & Protocols**: Included as categorical and numeric features.
+- **Session Stats**: Bytes and packets per session.
+- **Entropy (optional)**: For testing information density.
 
-source.ip	destination.ip	destination.port
-10.0.0.99	192.168.0.10	22
-10.0.0.99	192.168.0.11	22
-10.0.0.99	192.168.0.12	22
-...
-10.0.0.99	192.168.0.50	22
+---
 
-3. Destination IP spike
-Een destination.ip ontvangt plotseling veel verbindingen in een korte timeframe.
-Lijkt op een DDoS-attacj of ongebruikelijk piekverkeer naar 1 doel.
+## How to get started?
+`
+### Prerequisites
+- Python 3.8+
+- [Elasticsearch 8.x](https://www.elastic.co/elasticsearch/)
+- `.env` file with:
+  ```env
+  ES_HOST=https://your-elasticsearch-host
+  ES_API_KEY=your_api_key
+  LOGIN_USER=admin
+  LOGIN_PASS_HASH=hashed_bcrypt_password
+  ```
 
-Voorbeeld:
+### Installation
+```bash
+git clone https://github.com/MoElba-creator/PoC_Test.git
+cd PoC_Test
+pip install -r requirements.txt
+```
 
-timestamp	source.ip	destination.ip	destination.port
-2025-03-29 10:00:01	10.0.1.1	192.168.1.100	443
-2025-03-29 10:00:02	10.0.1.2	192.168.1.100	443
-2025-03-29 10:00:03	10.0.1.3	192.168.1.100	443
+### Optional: Build with Docker
+```bash
+docker build -t vives-anomaly-poc .
+```
 
-4. Ongebruikelijke IP-combinatie
+---
 
-source.ip en destination.ip communiceren terwijl dit nog nooit eerder is gebeurd in normaal netwerkverkeer.
-Wijst mogelijk op insider threat, laterale beweging, of ongewenst verkeer.
+## Run the Pipeline
 
-Voorbeeld:
+### Import Logs
+```bash
+python src/elasticsearch_import.py
+```
 
-source.ip	destination.ip
-10.10.10.10	 172.16.0.15
-In deze context: geen historisch verkeer tussen deze IP's = verdacht
+### Run Anomaly Detection
+```bash
+python src/ML_batch_scan.py
+```
 
-In onze dataset: 
+### Export Results to Elasticsearch
+```bash
+python src/elasticsearch_export.py
+```
 
-label met 1 - anomalie
-label met 0 - normaal verkeer
+### Launch Streamlit Dashboard
+```bash
+streamlit run src/streamlit_app.py
+```
 
+---
 
-Resultaten van de ML Modellen
-Na het trainen van 3  supervised modellen op de gegenereerde dummydata, werden volgende resultaten behaald:
+## Retraining with Feedback
 
-Model	Accuracy	Precision	Recall	F1-score
-Random Forest	~100%	1.00	1.00	1.00
-Logistic Regression	~99.9%	0.99–1.00	0.99	0.99
-XGBoost	~100%	1.00	1.00	1.00
+### Step-by-step
+```bash
+python retrain_pipeline/export_feedback.py
+python retrain_pipeline/retrain_models.py
+python retrain_pipeline/evaluate_models.py
+```
+- If new models perform better you may **manually replace** deployed models.
 
+---
 
-Interpretatie:
-Deze resultaten zijn verwacht omdat we werken met dummy-data waarin de anomalieën bewust duidelijk afwijken van normaal netwerkgedrag.
-Doordat de patronen sterk contrast tonen met het normale verkeer, kunnen ML modellen ze goed herkennen .
+## Troubleshooting
 
+| Issue | Solution |
+|-------|----------|
+| `ConnectionError` to Elasticsearch | Check `.env` file and internet access |
+| `Missing columns in JSON` | Ensure correct structure in imported dataset |
+| Streamlit app fails login | Verify bcrypt password and user in `.env` |
 
+---
 
+## 🌐 Deployment & CI
+
+- GitHub Actions configured in `.github/workflows/retrain.yml` for automated retraining
+- Secrets must be configured in the GitHub repo for Elasticsearch access
+
+---
+
+## Screenshots
+
+_Add screenshots of the Streamlit dashboard here if available._
+
+---
+
+## Future Roadmap
+- Integrate real-time streaming with Logstash, Kafka, or Beats
+- Implement real-time alerting via Slack or email
+- Add drift detection and automatic model promotion
+- Replace manual retraining with fully automated CI/CD triggers
+
+---
+
+## Tips for VIVES
+- Use the Streamlit UI to validate or reject detected anomalies.
+- Periodically run the retraining pipeline to improve detection.
+- Consider extending with real-time streaming (e.g., Logstash/Beats + Kafka + REST API).
+
+---
+
+## License
+MIT License. Built as part of a Bachelor thesis at VIVES Hogeschool.

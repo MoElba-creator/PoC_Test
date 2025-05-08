@@ -18,7 +18,7 @@ load_dotenv()
 # Login for security reasons
 def check_login():
     correct_username = os.getenv("LOGIN_USER")
-    correct_password_hash = os.getenv("LOGIN_PASS_HASH").encode("utf-8")  # hashed password
+    correct_password_hash = os.getenv("LOGIN_PASS_HASH").encode("utf-8")
 
     # Initialize session state
     if "authenticated" not in st.session_state:
