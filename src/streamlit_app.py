@@ -94,9 +94,9 @@ with col2:
     st.title("Network logging anomalies review")
 
 #  Toggle false negative view
-show_false_negatives = st.sidebar.checkbox("Show false negatives", value=False)
+show_unflagged_logs = st.sidebar.checkbox("Show all evaluated logs", value=False)
 
-if show_false_negatives:
+if show_unflagged_logs:
     st.info("Showing logs that were not flagged by the model. You can mark them as false negatives to move them to the anomaly index for retraining.")
     INDEX_NAME = ALL_LOGS_INDEX
 else:
@@ -143,7 +143,8 @@ if end_dt < start_dt:
 try:
     if doc_id_filter:
         query = { "query": { "ids": { "values": [doc_id_filter] } } }
-        res = es.search(index=INDEX_NAME, body=query)
+        indexes = [ANOMALY_INDEX, ALL_LOGS_INDEX]
+        res = es.search(index=indexes, body=query)
         hits = res["hits"]["hits"]
     else:
         base_query = {
@@ -239,8 +240,8 @@ try:
                             es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "incorrect", "reviewed": True}})
                         st.warning("✔️ Marked as normal")
                         st.rerun()
-                if show_false_negatives:
 
+                if show_unflagged_logs:
                     if score_threshold < 0.7:
                         st.warning(
                             "⚠️ Viewing false negatives requires a higher minimum score (>= 0.7) to avoid slowdowns.")
