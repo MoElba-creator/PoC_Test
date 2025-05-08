@@ -13,30 +13,34 @@ with open("../data/dummy_network_logs.json", "r", encoding="utf-8") as f:
     records = json.load(f)
 df = pd.DataFrame(records)
 
-# Select relevant columns
-relevant_columns = [
-    "source.ip", "destination.ip",
-    "source.port", "destination.port",
-    "network.transport",
-    "session.iflow_bytes", "session.iflow_pkts",
-    "event.action", "label"
+# Define categorical and numeric features based on engineered dataset
+categorical_features = [
+    "source.ip", "destination.ip", "network.transport", "event.action",
+    "tcp.flags", "agent.version", "fleet.action.type", "message",
+    "proto_port_pair", "version_action_pair"
 ]
-df = df[[col for col in relevant_columns if col in df.columns]].dropna()
+
+numeric_features = [
+    "source.port", "destination.port",
+    "session.iflow_bytes", "session.iflow_pkts",
+    "flow_count_per_minute", "unique_dst_ports",
+    "bytes_ratio", "port_entropy", "flow.duration",
+    "bytes_per_pkt", "msg_code", "is_suspicious_ratio"
+]
+
+# Drop any records with missing values in required columns
+required_columns = categorical_features + numeric_features + ["label"]
+df = df[required_columns].dropna()
 
 # Encode categorical features
-encoder_input_columns = ["source.ip", "destination.ip", "network.transport", "event.action"]
-df[encoder_input_columns] = df[encoder_input_columns].astype(str)
-encoder = HashingEncoder(cols=encoder_input_columns, n_components=32)
-X_cat_encoded = encoder.fit_transform(df[encoder_input_columns])
+df[categorical_features] = df[categorical_features].astype(str)
+encoder = HashingEncoder(cols=categorical_features, n_components=32)
+X_cat_encoded = encoder.fit_transform(df[categorical_features])
 
-# Add numeric features
-X = X_cat_encoded.copy()
-X["source.port"] = df["source.port"]
-X["destination.port"] = df["destination.port"]
-X["session.iflow_bytes"] = df["session.iflow_bytes"]
-X["session.iflow_pkts"] = df["session.iflow_pkts"]
+# Combine encoded and numeric features
+X = pd.concat([X_cat_encoded, df[numeric_features].reset_index(drop=True)], axis=1)
 
-# Add isoforest_score
+# Add Isolation Forest score
 iso = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
 iso.fit(X)
 df["isoforest_score"] = iso.decision_function(X)
@@ -50,8 +54,8 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # Train supervised models
 rf = RandomForestClassifier(random_state=42)
-log = LogisticRegression(max_iter=1000)
-xgb = XGBClassifier(use_label_encoder=False, eval_metric="logloss")
+log = LogisticRegression(max_iter=3000)
+xgb = XGBClassifier(eval_metric="logloss")
 
 rf.fit(X_train, y_train)
 log.fit(X_train, y_train)
@@ -85,4 +89,4 @@ xgb_bundle = {
 joblib.dump(xgb_bundle, "../models/xgboost_model.pkl")
 joblib.dump(encoder, "../models/ip_encoder_hashing.pkl")
 
-print("\nAll models are trained and saved!")
+print("\nAll models are trained and saved with expanded features!")

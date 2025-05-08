@@ -15,6 +15,7 @@ st.set_page_config(page_title="VIVES Network logging anomalies review", layout="
 
 load_dotenv()
 
+# --- Login ---
 def check_login():
     correct_username = os.getenv("LOGIN_USER")
     raw_hash = os.getenv("LOGIN_PASS_HASH")
@@ -45,7 +46,7 @@ def check_login():
         if submitted:
             now = time.time()
             if now - st.session_state.last_attempt_time < 5:
-                st.error("Please wait  before trying again.")
+                st.error("Please wait before trying again.")
                 st.stop()
 
             if username == correct_username and bcrypt.checkpw(password.encode("utf-8"), correct_password_hash):
@@ -62,11 +63,46 @@ def check_login():
 
 check_login()
 
-# Index names
+# --- Sidebar Filters First (important for datetime vars) ---
+st.sidebar.title("Filtering")
+
+if st.sidebar.button("\U0001F504 Reset filters"):
+    st.session_state["group_filter_option"] = "Show all"
+    st.session_state["doc_id_filter"] = ""
+    st.session_state["source_ip"] = ""
+    st.session_state["destination_ip"] = ""
+    st.session_state["protocol"] = ""
+    st.session_state["score_threshold"] = 0.0
+
+group_filter_option = st.sidebar.selectbox("Group filter", ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"], key="group_filter_option")
+doc_id_filter = st.sidebar.text_input("Search on unique log ID", key="doc_id_filter").strip()
+source_ip = st.sidebar.text_input("Filter on Source IP", key="source_ip")
+destination_ip = st.sidebar.text_input("Filter on Destination IP", key="destination_ip")
+protocol = st.sidebar.text_input("Filter on Network Protocol", key="protocol")
+score_type = st.sidebar.selectbox("Select ML-modelscore for filtering", options=["No filtering", "RF", "ISO", "XGBoost", "Logistic", "Average of all"], index=0, key="score_type")
+
+score_threshold = st.sidebar.slider("Minimum average score", min_value=0.0, max_value=1.0, step=0.01, key="score_threshold")
+max_logs = st.sidebar.slider("Maximum shown logs", min_value=1, max_value=1000, value=100)
+MAX_SAFE_LOGS = 200
+if max_logs > MAX_SAFE_LOGS:
+    st.warning(f"Showing more than {MAX_SAFE_LOGS} logs may slow down performance.")
+    max_logs = MAX_SAFE_LOGS
+
+st.sidebar.markdown("\ud83d\udcc5 Filter on log date")
+start_date = st.sidebar.date_input("Start date")
+start_time = st.sidebar.time_input("Start Time", value=dt_time(0, 0))
+end_date = st.sidebar.date_input("End date")
+end_time = st.sidebar.time_input("End Time", value=dt_time(23, 59))
+
+start_dt = datetime.combine(start_date, start_time)
+end_dt = datetime.combine(end_date, end_time)
+if end_dt < start_dt:
+    end_dt = start_dt
+
+# --- Indexes and connection ---
 ANOMALY_INDEX = "network-anomalies"
 ALL_LOGS_INDEX = "network-anomalies-all"
 
-# 🔌 Elasticsearch connection
 ES_HOST = os.getenv("ES_HOST") or st.secrets["ES_HOST"]
 ES_API_KEY = os.getenv("ES_API_KEY") or st.secrets["ES_API_KEY"]
 
@@ -77,7 +113,7 @@ es = Elasticsearch(
     request_timeout=30
 )
 
-# 🖼 Logo
+# --- Logo ---
 logo_path = Path(__file__).resolve().parent.parent / "images" / "logo_vives.png"
 if not logo_path.exists():
     st.error(f"Logo not found at: {logo_path}")
@@ -99,6 +135,31 @@ show_unflagged_logs = st.sidebar.checkbox("Show all evaluated logs", value=False
 if show_unflagged_logs:
     st.info("Showing logs that were not flagged by the model. You can mark them as false negatives to move them to the anomaly index for retraining.")
     INDEX_NAME = ALL_LOGS_INDEX
+
+    base_query = {
+        "bool": {
+            "must": [
+                {
+                    "bool": {
+                        "should": [
+                            {"term": {"user_feedback.keyword": "unknown"}},
+                            {"bool": {"must_not": {"exists": {"field": "user_feedback"}}}}
+                        ]
+                    }
+                },
+                {
+                    "bool": {
+                        "must_not": [
+                            {"exists": {"field": "RF_pred"}},
+                            {"exists": {"field": "LOG_pred"}},
+                            {"exists": {"field": "XGB_pred"}}
+                        ]
+                    }
+                },
+                {"range": {"@timestamp": {"gte": start_dt.isoformat(), "lte": end_dt.isoformat()}}}
+            ]
+        }
+    }
 else:
     st.info("Showing logs flagged by the model as an anomaly. Once feedback is given the log disappears from this view.")
     INDEX_NAME = ANOMALY_INDEX
