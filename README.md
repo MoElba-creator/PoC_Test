@@ -169,17 +169,33 @@ python retrain_pipeline/evaluate_models.py
 ---
 
 ## Future Roadmap
-- Integrate real-time streaming with Logstash, Kafka, or Beats
-- Implement real-time alerting via Slack or email
-- Add drift detection and automatic model promotion
-- Replace manual retraining with fully automated CI/CD triggers
+`The following improvements are meaningful to increase detection accuracy, scalability, and user feedback integration:
+
+- Expand Detection Categories:
+  - Add specific detection logic or features for DoS, DDoS, brute force, and internal reconnaissance attacks.
+  - Use time-based patterns (e.g., connection bursts, session frequency).
+
+- Feature Engineering Enhancements:
+  - Include time windows, average packet size, IP behavior ratios.
+  - Leverage statistical aggregation per host/IP/port.
+
+- Feedback Loop Optimization:
+  - Weight recent feedback more during retraining.
+  - Detect drift in model performance to trigger automatic retraining.
+
+- Model Strategy:
+  - Use ensemble voting between Isolation Forest, XGBoost, and Logistic Regression.
+  - Introduce explainable AI techniques (e.g., SHAP values) to justify predictions.
+
+- Operational Resilience:
+  - Add validation checks for corrupted JSON, wrong column types, or empty feedback.
+  - Build alerting for pipeline failures or model degradation.
 
 ---
 
 ## Tips for VIVES
 - Use the Streamlit UI to validate or reject detected anomalies.
-- Periodically run the retraining pipeline to improve detection.
-- Consider extending with real-time streaming (e.g., Logstash/Beats + Kafka + REST API).
+- Track detection performance over time to decide when retraining is needed.
 
 ---
 
