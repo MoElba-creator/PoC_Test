@@ -95,6 +95,26 @@ df.loc[df_selected.index, "XGB_score"] = xgb_model.predict_proba(X_encoded)[:, 1
 # AVerage model score
 df["model_score"] = df[["RF_score", "LOG_score", "XGB_score"]].mean(axis=1)
 
+# Add default feedback fields for future manual review and false negatives
+df.loc[df_selected.index, "user_feedback"] = None
+df.loc[df_selected.index, "reviewed"] = False
+
+# Export full evaluated logs
+df_all_evaluated = df.loc[df_selected.index, [
+    *available_columns,
+    "isoforest_score",
+    "RF_pred", "LOG_pred", "XGB_pred",
+    "RF_score", "LOG_score", "XGB_score",
+    "model_score",
+    "user_feedback", "reviewed"
+]]
+
+# Save it as a separate file
+all_logs_output_path = "../data/all_evaluated_logs.json"
+df_all_evaluated.to_json(all_logs_output_path, orient="records", indent=2)
+
+print(f"Full evaluated logs saved for post-hoc review: {all_logs_output_path}")
+
 # Select flags by models
 df_anomalies = df[
     (df["RF_pred"] == 1) |

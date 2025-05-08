@@ -1,18 +1,14 @@
-<p align="center">
-  <img src="images/logo_vives.png" alt="VIVES Logo" width="140"/>
-</p>
-
 # VIVES PoC: Data-Driven anomaly detection in networklogs
 
-This project is a **Proof of Concept (PoC)** for real-time anomaly detection in network logs using a hybrid Machine Learning approach, built for the **IT Architecture & Security** department of **Hogeschool VIVES**.
+This project is a **Proof of Concept (PoC)** for anomaly detection in network logs using a hybrid Machine Learning approach built for the **Architecture & Security** department of **Hogeschool VIVES**.
 
 ## Project Overview
-- **Goal**: Detect port scans, unusual data transfers, and abnormal connection volumes in network logs.
-- **Environment**: Logs stored in Elasticsearch, processed with Python, and visualized through a Streamlit dashboard.
+- **Goal**: Detect port scans, unusual data transfers and abnormal connection volumes in network logs.
+- **Environment**: Logs stored in Elasticsearch, processed with Python and visualized through an Elasticsearch dashboard.
 - **Features**:
   - Automatic anomaly detection using Isolation Forest + supervised classifiers (RF, LR, XGB).
-  - Dashboard for anomaly review and feedback.
-  - Automated retraining loop based on user feedback.
+  - Dashboard for anomaly review and Streamlit for feedback.
+  - Automated or ad-hoc retraining loop based on user feedback.
   - Integration with Elasticsearch.
 
 ---
