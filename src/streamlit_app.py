@@ -178,6 +178,8 @@ try:
         for hit in hits:
             source = hit["_source"]
             doc_id = hit["_id"]
+            index_name = hit["_index"]
+            source["_origin_index"] = index_name
             raw_ts = source["@timestamp"]
             if "." in raw_ts:
                 raw_ts = raw_ts.split(".")[0] + "." + raw_ts.split(".")[1][:6] + "Z"
@@ -255,9 +257,13 @@ try:
                         st.rerun()
 
                 for doc_id, source in items:
-                    st.markdown(f"** Log** `{source.get('@timestamp', '?')}` —  `{doc_id}`")
-                    with st.expander("🔎 View full log details"):
+                    index_label = source.get("_origin_index", "?")
+                    label = "Unflagged (evaluated)" if index_label == ALL_LOGS_INDEX else "Flagged (anomaly)"
+                    st.markdown(
+                        f"** Log** `{source.get('@timestamp', '?')}` —  `{doc_id}` — {label} —  Index: `{index_label}`")
+                    with st.expander("View full log details"):
                         st.code(json.dumps(source, indent=2), language="json")
+
 
 
 except NotFoundError:
