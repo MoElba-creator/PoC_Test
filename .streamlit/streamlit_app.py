@@ -47,7 +47,14 @@ try:
     if from_ts and to_ts:
         start_dt = datetime.fromisoformat(from_ts)
         end_dt = datetime.fromisoformat(to_ts)
-        st.sidebar.info(f"📅 Filter auto-set from dashboard: {start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%H:%M')}")
+
+        st.sidebar.info(
+            f"📅 Filter auto-set from dashboard: {start_dt.strftime('%Y-%m-%d %H:%M')} → {end_dt.strftime('%H:%M')}"
+        )
+
+        if st.sidebar.button("🔄 Clear dashboard filter"):
+            st.experimental_set_query_params()  # Clears all query params
+            st.rerun()
     else:
         raise ValueError("Missing params")
 except Exception:
