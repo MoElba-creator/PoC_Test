@@ -5,14 +5,13 @@ import time
 import hashlib
 import base64
 from dotenv import load_dotenv
+from core.cookies import CookieManager
 
 load_dotenv()
 
-def get_secret(key):
-    return os.getenv(key) or st.secrets.get(key)
-
 COOKIE_NAME = "auth_token"
-COOKIE_SECRET = get_secret("COOKIE_SECRET") or "fallback_key_change_me"
+COOKIE_SECRET = os.getenv("COOKIE_SECRET") or st.secrets.get("COOKIE_SECRET") or "fallback_dev_key"
+COOKIE_MANAGER = CookieManager()
 
 def _generate_token(username):
     timestamp = str(int(time.time()))
@@ -29,21 +28,26 @@ def _validate_token(token):
         if valid_signature == signature:
             return username
     except:
-        pass
-    return None
+        return None
+
+def get_secret(key):
+    return os.getenv(key) or st.secrets.get(key)
 
 def check_login():
+    cookie_manager = COOKIE_MANAGER
+
     correct_username = get_secret("LOGIN_USER")
     correct_password_hash = get_secret("LOGIN_PASS_HASH").encode("utf-8")
 
-    token = st.experimental_get_cookie(COOKIE_NAME)
+    token = cookie_manager.get(COOKIE_NAME)
     user_from_token = _validate_token(token) if token else None
+
     if user_from_token == correct_username:
         st.session_state.authenticated = True
         st.sidebar.success(f"🔓 Logged in as {user_from_token}")
         if st.sidebar.button("🔒 Logout"):
             st.session_state.authenticated = False
-            st.experimental_set_cookie(COOKIE_NAME, "", expires=0)
+            cookie_manager.delete(COOKIE_NAME)
             st.rerun()
         return
 
@@ -56,7 +60,7 @@ def check_login():
         if submit:
             if username == correct_username and bcrypt.checkpw(password.encode("utf-8"), correct_password_hash):
                 token = _generate_token(username)
-                st.experimental_set_cookie(COOKIE_NAME, token, max_age=86400)
+                cookie_manager.set(COOKIE_NAME, token, max_age=86400)
                 st.success("✔️ Logged in successfully")
                 st.rerun()
             else:
