@@ -2,7 +2,6 @@ import pandas as pd
 import joblib
 import json
 from sklearn.ensemble import IsolationForest
-from category_encoders import HashingEncoder
 
 # ──────────────────────────────────────────────
 # CONFIGURATION
@@ -40,14 +39,14 @@ PATH_OUTPUT_ALL = "../data/all_evaluated_logs.json"
 PATH_OUTPUT_ANOMALIES = "../data/predicted_anomalies.json"
 # ──────────────────────────────────────────────
 
-# 1. LOAD DATA
+# LOAD DATA
 with open(PATH_VALIDATION, "r", encoding="utf-8") as f:
     records = json.load(f)
 flattened_data = [r["_source"] for r in records if "_source" in r]
 df = pd.json_normalize(flattened_data)
 print("✅ Records loaded:", len(df))
 
-# 2. FILL MISSING COLUMNS WITH DEFAULTS
+# FILL MISSING COLUMNS WITH DEFAULTS
 safe_fill = {
     "tcp.flags": "UNKNOWN",
     "proto_port_pair": "UNKNOWN",
@@ -67,16 +66,16 @@ for col, default in safe_fill.items():
         df[col] = default
     df[col] = df[col].fillna(default)
 
-# 3. DROP ONLY CRITICAL MISSING VALUES
+# DROP ONLY CRITICAL MISSING VALUES
 critical = [
     "source.ip", "destination.ip", "network.transport", "event.action",
     "source.port", "destination.port", "session.iflow_bytes", "session.iflow_pkts"
 ]
-print("🧹 Missing values before drop (critical only):")
+print("Missing values before drop:")
 print(df[critical].isnull().sum())
 
 df.dropna(subset=critical, inplace=True)
-print("✅ Rows after cleanup:", len(df))
+print("Number of rSows after cleanup:", len(df))
 
 # 4. ENCODE CATEGORICAL FEATURES
 encoder = joblib.load("../models/ip_encoder_hashing.pkl")
@@ -127,12 +126,10 @@ df.to_json(PATH_OUTPUT_ALL, orient="records", indent=2)
 print(f"✔ Full evaluated logs saved to: {PATH_OUTPUT_ALL}")
 
 # 11. ANOMALY SELECTION
-df_anomalies = df[
-    (df["RF_pred"] == 1) |
-    (df["LOG_pred"] == 1) |
-    (df["XGB_pred"] == 1)
-].copy()
-print(f"⚠️ Total anomalies predicted: {len(df_anomalies)}")
+# Apply voting-based anomaly filter: at least 2 out of 3 models must agree
+model_preds = df[["RF_pred", "LOG_pred", "XGB_pred"]].sum(axis=1)
+df_anomalies = df[model_preds >= 2]
+print(f"\nTotal anomalies predicted by majority voting: {len(df_anomalies)}")
 
 # 12. FILTERED ANOMALIES
 df_anomalies_filtered = df_anomalies[
@@ -140,7 +137,7 @@ df_anomalies_filtered = df_anomalies[
     ~df_anomalies["source.ip"].isin(TRUSTED_SOURCE_IPS) &
     ~df_anomalies["destination.ip"].isin(TRUSTED_DEST_IPS)
 ].copy()
-print(f"🚨 Final filtered anomalies: {len(df_anomalies_filtered)}")
+print(f"Final filtered anomalies: {len(df_anomalies_filtered)}")
 
 df_anomalies_filtered["user_feedback"] = None
 df_anomalies_filtered["reviewed"] = False

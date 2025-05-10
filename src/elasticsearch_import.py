@@ -21,9 +21,9 @@ es = Elasticsearch(
 )
 
 # PoC testset
-# 10 blocks of  10 minutes spread over a weeks
+# 10 blocks of  15 minutes spread over weeks
 start_times = [
-    datetime(2025, 5, 8, 10, 0, tzinfo=timezone.utc),
+    datetime(2025, 3, 8, 10, 0, tzinfo=timezone.utc),
     datetime(2025, 5, 4, 15, 0, tzinfo=timezone.utc),
     datetime(2025, 5, 3, 20, 0, tzinfo=timezone.utc),
     datetime(2025, 5, 5, 2, 0, tzinfo=timezone.utc),
@@ -35,7 +35,7 @@ start_times = [
     datetime(2025, 4, 27, 18, 0, tzinfo=timezone.utc)
 ]
 
-duration = timedelta(minutes=10)
+duration = timedelta(minutes=15)
 
 all_docs = []
 
