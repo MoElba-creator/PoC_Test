@@ -7,12 +7,6 @@ from dotenv import load_dotenv
 import altair as alt
 from urllib.parse import urlencode
 
-# ──────────────────────────────────────────────
-# INIT
-st.set_page_config(page_title="📊 Anomaly Dashboard", layout="wide")
-st.title("📊 Real-Time Network Anomaly Dashboard")
-st.markdown("### Powered by Elasticsearch + Machine Learning")
-
 load_dotenv()
 
 # ──────────────────────────────────────────────
@@ -86,9 +80,9 @@ df = df[df["@timestamp"] >= pd.Timestamp(start_time).tz_localize("UTC")]
 # ──────────────────────────────────────────────
 # METRICS
 col1, col2, col3 = st.columns(3)
-col1.metric("🔍 Logs loaded", len(df))
-col2.metric("💥 Avg. model score", round(df["model_score"].mean(), 4))
-col3.metric("🧠 Unique Source IPs", df["source_ip"].nunique() if "source_ip" in df else "N/A")
+col1.metric("Logs loaded", len(df))
+col2.metric("Avgerage model score", round(df["model_score"].mean(), 4))
+col3.metric("Unique Source IPs", df["source_ip"].nunique() if "source_ip" in df else "N/A")
 
 # ──────────────────────────────────────────────
 # CHART: Anomalies Over Time with click support
@@ -110,7 +104,7 @@ if not df.empty:
     st.altair_chart(chart, use_container_width=True)
 
     # Show top 10 busiest hours with links
-    st.markdown("### 🔍 Explore busiest hours")
+    st.markdown("###Explore busiest hours")
     top_hours = time_hist.sort_values("count", ascending=False).head(10)
     for _, row in top_hours.iterrows():
         from_ts = row["hour"].isoformat()
@@ -124,14 +118,14 @@ else:
 
 # ──────────────────────────────────────────────
 if "source_ip" in df:
-    st.markdown("### 🌐 Top 10 Source IPs")
+    st.markdown("###Top 10 Source IPs")
     top_ips = df["source_ip"].value_counts().head(10).reset_index()
     top_ips.columns = ["source_ip", "count"]
     st.bar_chart(top_ips.set_index("source_ip"))
 
 # ──────────────────────────────────────────────
 if "model_score" in df:
-    st.markdown("### 🎯 Model Score Distribution")
+    st.markdown("### Model Score Distribution")
     hist = alt.Chart(df).mark_bar().encode(
         alt.X("model_score:Q", bin=alt.Bin(maxbins=20), title="Model Score"),
         y=alt.Y("count():Q", title="Count"),
@@ -141,7 +135,7 @@ if "model_score" in df:
 
 # ──────────────────────────────────────────────
 if "user_feedback" in df:
-    st.markdown("### 🗣️ User Feedback Overview")
+    st.markdown("### User Feedback Overview")
     fb_counts = df["user_feedback"].fillna("unknown").value_counts().reset_index()
     fb_counts.columns = ["Feedback", "Count"]
     chart = alt.Chart(fb_counts).mark_arc(innerRadius=40).encode(
@@ -153,4 +147,3 @@ if "user_feedback" in df:
 
 # ──────────────────────────────────────────────
 st.markdown("---")
-st.caption("Live dashboard powered by Elasticsearch • Built with ❤️ using Streamlit and Altair")

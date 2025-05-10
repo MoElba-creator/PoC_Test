@@ -8,3 +8,4 @@ scikit-learn
 xgboost
 bcrypt
 streamlit-extras
+streamlit-javascript
