@@ -24,6 +24,18 @@ es = Elasticsearch(
 # 10 blocks of  15 minutes spread over weeks
 start_times = [
     datetime(2025, 3, 8, 10, 0, tzinfo=timezone.utc),
+    datetime(2025, 3, 16, 15, 0, tzinfo=timezone.utc),
+    datetime(2025, 3, 25, 20, 0, tzinfo=timezone.utc),
+    datetime(2025, 4, 2, 2, 0, tzinfo=timezone.utc),
+    datetime(2025, 4, 9, 11, 0, tzinfo=timezone.utc),
+    datetime(2025, 4, 16, 9, 0, tzinfo=timezone.utc),
+    datetime(2025, 4, 23, 13, 0, tzinfo=timezone.utc),
+    datetime(2025, 4, 29, 17, 30, tzinfo=timezone.utc),
+    datetime(2025, 5, 2, 0, 0, tzinfo=timezone.utc),
+    datetime(2025, 5, 9, 18, 0, tzinfo=timezone.utc)
+]
+''' [
+    datetime(2025, 3, 8, 10, 0, tzinfo=timezone.utc),
     datetime(2025, 5, 4, 15, 0, tzinfo=timezone.utc),
     datetime(2025, 5, 3, 20, 0, tzinfo=timezone.utc),
     datetime(2025, 5, 5, 2, 0, tzinfo=timezone.utc),
@@ -33,7 +45,7 @@ start_times = [
     datetime(2025, 4, 24, 17, 30, tzinfo=timezone.utc),
     datetime(2025, 4, 25, 0, 0, tzinfo=timezone.utc),
     datetime(2025, 4, 27, 18, 0, tzinfo=timezone.utc)
-]
+]'''
 
 duration = timedelta(minutes=15)
 

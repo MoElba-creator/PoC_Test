@@ -117,16 +117,11 @@ if common_numerical_cols:
         if len(real_sample) > 10000:
             real_sample = real_sample.sample(10000, random_state=42)
         if col == "session.iflow_bytes":
-            sns.histplot(real_sample, bins=50, kde=False, log_scale=(False, True))
-            plt.xlabel(col)
-            plt.ylabel("Count (log scale)")
-            p99 = real_sample.quantile(0.99)
-            plt.axvline(p99, color='red', linestyle='--', label='99th percentile')
-            plt.legend()
-            plt.title(f"Real Data: {col} (log-scale Y, includes 0s)")
+            sns.histplot(real_sample, bins=50, kde=False)
+            plt.xlim(0, 25000)  # Focus zoom for better visibility
         else:
             sns.histplot(real_sample, bins=50, kde=False)
-            plt.title(f"Real Data: {col}")
+        plt.title(f"Real Data: {col}")
 
         plt.tight_layout()
         plt.show()

@@ -121,19 +121,39 @@ def generate_traffic(n, label, pattern):
     """
 
     base_time = datetime(2025, 4, 15) + timedelta(days=random.randint(0, 7))
-    common_ports = [53] * 70 + [443] * 10 + [9200] * 5 + [22] * 5 + [80] * 5 + [3306] * 3 + [21] * 2
 
-    bytes_dist = np.random.exponential(scale=6000, size=n)
-    bytes_clipped = np.clip(bytes_dist, 0, 250000).astype(int)
+    common_ports = [53, 9200, 67, 2048, 53202, 68, 443, 770, 769, 4122, 4120, 445, 135, 88, 389, 123, 771, 47808, 49670,
+                    4118]
+    weights = [
+        0.55,  # 53 (DNS) — most common
+        0.16,  # 9200 (Elasticsearch)
+        0.10,  # 67 (DHCP)
+        0.012,  # 2048
+        0.01,  # 53202
+        0.005,  # 68 (DHCP)
+        0.004,  # 443 (HTTPS)
+        0.002, 0.002, 0.0015, 0.0012,  # 770, 769, 4122, 4120
+        0.001, 0.0008, 0.0007, 0.0005, 0.0005,  # 445, 135, 88, 389, 123
+        0.0003, 0.0003, 0.0002,
+        0.0001
+    ]
+    weights = [w / sum(weights) for w in weights]
+    destination_ports = np.random.choice(common_ports, size=n, p=weights)
 
-    p_pkt = np.array([0.3, 0.25, 0.1, 0.08, 0.05, 0.05, 0.05, 0.04, 0.03, 0.02, 0.015, 0.005, 0.005])
-    p_pkt /= p_pkt.sum()  # normalize
+    # Simulate flow bytes: 50% are 0, rest follow a log-normal distribution
+    mean_adjusted = 6.5  # Adjusted mean
+    sigma_adjusted = 2.5 # Adjusted sigma
+    raw_bytes = np.random.lognormal(mean=mean_adjusted, sigma=sigma_adjusted, size=n).astype(int)
+    raw_bytes = np.clip(raw_bytes, 0, 2848576)
+    zero_mask = np.random.rand(n) < 0.5
+    raw_bytes[zero_mask] = 0
+    session_iflow_bytes = raw_bytes
 
-    pkts_dist = np.random.choice(
-        [0, 1, 2, 3, 4, 5, 10, 25, 50, 100, 200, 500, 1000],
-        size=n,
-        p=p_pkt
-    )
+    mean_pkts = 1.5
+    sigma_pkts = 2.4
+    pkt_base = np.random.lognormal(mean=mean_pkts, sigma=sigma_pkts, size=n).astype(int)
+    pkt_base = np.clip(pkt_base, 0, 78600)
+    pkt_base[np.random.rand(n) < 0.5] = 0
 
     source_port_pool = [0] * 3 + list(range(30000, 65536))
 
@@ -142,11 +162,11 @@ def generate_traffic(n, label, pattern):
         "source.ip": pattern.get("src_ips", np.random.choice(real_ips, n)),
         "destination.ip": pattern.get("dst_ips", np.random.choice(real_ips, n)),
         "source.port": np.random.choice(source_port_pool, size=n),
-        "destination.port": pattern.get("dst_ports", np.random.choice(common_ports, size=n)),
+        "destination.port": pattern.get("dst_ports", destination_ports),
         "network.transport": np.random.choice(pattern.get("transports", ["tcp", "udp"]), size=n,
                                               p=pattern.get("transport_probs", None)),
-        "session.iflow_bytes": bytes_clipped,
-        "session.iflow_pkts": pkts_dist,
+        "session.iflow_bytes": session_iflow_bytes,
+        "session.iflow_pkts": pkt_base,
         "event.action": ["flow_create"] * n,
     })
     df["session.id"] = df.apply(generate_session_id, axis=1)
