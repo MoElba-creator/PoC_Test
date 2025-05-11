@@ -1,6 +1,7 @@
 import pandas as pd
 import joblib
 import json
+import os
 from sklearn.ensemble import IsolationForest
 
 # ──────────────────────────────────────────────
@@ -77,13 +78,20 @@ print(df[critical].isnull().sum())
 df.dropna(subset=critical, inplace=True)
 print("Number of rSows after cleanup:", len(df))
 
-# 4. ENCODE CATEGORICAL FEATURES
-encoder = joblib.load("../models/ip_encoder_hashing.pkl")
+# ENCODE FEATURES
+# Load XGBoost bundle (which includes the encoder)
+MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+xgb_bundle = joblib.load(os.path.join(MODEL_DIR, "xgboost_model.pkl"))
+xgb_model = xgb_bundle["model"]
+xgb_encoder = xgb_bundle["encoder"]
+xgb_expected_columns = xgb_bundle["columns"]
+
 df[ENCODER_INPUT_COLUMNS] = df[ENCODER_INPUT_COLUMNS].astype(str)
-X_encoded = encoder.transform(df[ENCODER_INPUT_COLUMNS])
+X_encoded = xgb_encoder.transform(df[ENCODER_INPUT_COLUMNS])
 
 for col in NUMERIC_COLUMNS:
     X_encoded[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
 
 # 5. UNSUPERVISED ANOMALY SCORE
 iso_forest = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
@@ -91,21 +99,13 @@ iso_forest.fit(X_encoded)
 df["isoforest_score"] = iso_forest.decision_function(X_encoded)
 X_encoded["isoforest_score"] = df["isoforest_score"]
 
-# 6. XGBOOST ENCODING
-xgb_bundle = joblib.load("../models/xgboost_model.pkl")
-xgb_model = xgb_bundle["model"]
-xgb_encoder = xgb_bundle["encoder"]
-xgb_expected_columns = xgb_bundle["columns"]
-
-X_encoded_xgb = xgb_encoder.transform(df[ENCODER_INPUT_COLUMNS])
-for col in NUMERIC_COLUMNS:
-    X_encoded_xgb[col] = df[col]
-X_encoded_xgb["isoforest_score"] = df["isoforest_score"]
+# Prepare XGBoost input
+X_encoded_xgb = X_encoded.copy()
 X_encoded_xgb = X_encoded_xgb[xgb_expected_columns]
 
 # 7. LOAD SUPERVISED MODELS
-rf_model = joblib.load("../models/random_forest_model.pkl")
-log_model = joblib.load("../models/logistic_regression_model.pkl")
+rf_model = joblib.load(os.path.join(MODEL_DIR, "random_forest_model.pkl"))
+log_model = joblib.load(os.path.join(MODEL_DIR, "logistic_regression_model.pkl"))
 
 # 8. PREDICT
 df["RF_pred"] = rf_model.predict(X_encoded)
