@@ -73,7 +73,7 @@ critical = [
 df.dropna(subset=critical, inplace=True)
 
 # ENCODE FEATURES
-encoder = joblib.load("../models/ip_encoder_hashing.pkl")
+encoder = joblib.load(os.path.join("models", "ip_encoder_hashing.pkl"))
 df[ENCODER_INPUT_COLUMNS] = df[ENCODER_INPUT_COLUMNS].astype(str)
 X_encoded = encoder.transform(df[ENCODER_INPUT_COLUMNS])
 for col in NUMERIC_COLUMNS:
@@ -86,7 +86,7 @@ df["isoforest_score"] = iso_forest.decision_function(X_encoded)
 X_encoded["isoforest_score"] = df["isoforest_score"]
 
 # XGBOOST
-xgb_bundle = joblib.load("../models/xgboost_model.pkl")
+xgb_bundle = joblib.load(os.path.join("models", "xgboost_model.pkl"))
 xgb_model = xgb_bundle["model"]
 xgb_encoder = xgb_bundle["encoder"]
 xgb_expected_columns = xgb_bundle["columns"]
@@ -98,8 +98,8 @@ X_encoded_xgb["isoforest_score"] = df["isoforest_score"]
 X_encoded_xgb = X_encoded_xgb[xgb_expected_columns]
 
 # SUPERVISED MODELS
-rf_model = joblib.load("../models/random_forest_model.pkl")
-log_model = joblib.load("../models/logistic_regression_model.pkl")
+rf_model = joblib.load(os.path.join("models", "random_forest_model.pkl"))
+log_model = joblib.load(os.path.join("models", "logistic_regression_model.pkl"))
 
 # PREDICTIONS
 df["RF_pred"] = rf_model.predict(X_encoded)
