@@ -1,0 +1,37 @@
+name: Real-time anomaly detection
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"  # Every 5 minutes
+  workflow_dispatch:
+
+jobs:
+  etl-detect-pipeline:
+    runs-on: ubuntu-latest
+
+    env:
+      ES_HOST: ${{ secrets.ES_HOST }}
+      ES_API_KEY: ${{ secrets.ES_API_KEY }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Fetch last 5 minutes of logs from Elasticsearch
+        run: python elasticsearch_import.py
+
+      - name: Run anomaly detection models on fresh logs
+        run: python ML_batch_scan.py
+
+      - name: Export logs and predictions to Elasticsearch
+        run: python elasticsearch_export_realtime.py

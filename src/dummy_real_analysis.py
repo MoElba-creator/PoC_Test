@@ -172,19 +172,5 @@ if 'label' in dummy_df.columns:
     plt.tight_layout()
     plt.show()
 
-# PCA projection (optimized)
-features = [col for col in ["session.iflow_bytes", "session.iflow_pkts", "bytes_ratio", "bytes_per_pkt"] if col in dummy_df.columns]
-if features and 'label' in dummy_df.columns:
-    sampled = dummy_df[features + ["label"]].dropna()
-    if len(sampled) > 10000:
-        sampled = sampled.sample(10000, random_state=42)
-
-    scaled = StandardScaler().fit_transform(sampled[features])
-    proj = PCA(n_components=2).fit_transform(scaled)
-    sampled["pca1"], sampled["pca2"] = proj[:, 0], proj[:, 1]
-    sns.scatterplot(data=sampled, x="pca1", y="pca2", hue="label", alpha=0.4)
-    plt.title("PCA Projection of Dummy Dataset")
-    plt.tight_layout()
-    plt.show()
 else:
     print("\nNo common numerical columns to visualize.")

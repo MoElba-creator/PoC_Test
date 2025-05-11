@@ -5,80 +5,51 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
 from dotenv import load_dotenv
 
-# Configuratie load from .env
+# Load Elasticsearch config from .env
 load_dotenv()
-
 ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
 INDEX = "logs-*"
-OUTPUT_PATH = "../data/validation_dataset.json"
 
-# Elasticsearch client settings
+# Initialize client
 es = Elasticsearch(
     ES_HOST,
     api_key=ES_API_KEY,
     verify_certs=True
 )
 
-# PoC testset
-# 10 blocks of  15 minutes spread over weeks
-start_times = [
-    datetime(2025, 3, 8, 10, 0, tzinfo=timezone.utc),
-    datetime(2025, 3, 16, 15, 0, tzinfo=timezone.utc),
-    datetime(2025, 3, 25, 20, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 2, 2, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 9, 11, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 16, 9, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 23, 13, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 29, 17, 30, tzinfo=timezone.utc),
-    datetime(2025, 5, 2, 0, 0, tzinfo=timezone.utc),
-    datetime(2025, 5, 9, 18, 0, tzinfo=timezone.utc)
-]
-''' [
-    datetime(2025, 3, 8, 10, 0, tzinfo=timezone.utc),
-    datetime(2025, 5, 4, 15, 0, tzinfo=timezone.utc),
-    datetime(2025, 5, 3, 20, 0, tzinfo=timezone.utc),
-    datetime(2025, 5, 5, 2, 0, tzinfo=timezone.utc),
-    datetime(2025, 5, 5, 11, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 22, 9, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 23, 13, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 24, 17, 30, tzinfo=timezone.utc),
-    datetime(2025, 4, 25, 0, 0, tzinfo=timezone.utc),
-    datetime(2025, 4, 27, 18, 0, tzinfo=timezone.utc)
-]'''
+# Calculate time window: now - 5 minutes
+now = datetime.now(timezone.utc)
+start_time = now - timedelta(minutes=5)
+end_time = now
 
-duration = timedelta(minutes=15)
+# Generate output filename with timestamp
+timestamp_str = now.strftime("%Y-%m-%dT%H-%M-%S")
+OUTPUT_PATH = f"../data/validation_logs_{timestamp_str}.json"
 
-all_docs = []
+print(f"Fetching logs from {start_time.isoformat()} to {end_time.isoformat()}")
 
-# Fetch logs
-for start_time in start_times:
-    end_time = start_time + duration
-    print(f"Logs fetching from {start_time.isoformat()} until {end_time.isoformat()}...")
-
-    query = {
-        "query": {
-            "range": {
-                "@timestamp": {
-                    "gte": start_time.isoformat(),
-                    "lte": end_time.isoformat()
-                }
+query = {
+    "query": {
+        "range": {
+            "@timestamp": {
+                "gte": start_time.isoformat(),
+                "lte": end_time.isoformat()
             }
-        },
-        "_source": True
-    }
+        }
+    },
+    "_source": True
+}
 
-    try:
-        results = scan(es, query=query, index=INDEX, size=5000)
-        docs = list(results)
-        print(f"Found logs: {len(docs)} logs")
-        all_docs.extend(docs)
+try:
+    results = scan(es, query=query, index=INDEX, size=5000)
+    docs = list(results)
+    print(f"Retrieved {len(docs)} logs.")
 
-    except Exception as e:
-        print(f"Error  {start_time} – {end_time}: {e}")
+    # Save logs to timestamped JSON
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(docs, f, indent=2)
+    print(f"Saved logs to {OUTPUT_PATH}")
 
-# JSON export
-with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-    json.dump(all_docs, f, indent=2)
-
-print(f"Validation set saved to: {OUTPUT_PATH}")
+except Exception as e:
+    print(f"Error fetching logs: {e}")

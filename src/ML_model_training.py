@@ -8,12 +8,16 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-# Load data
+# ---------------------------------------------
+# Load and preprocess network log data
+# ---------------------------------------------
+
+# Load synthetic network logs from JSON
 with open("../data/dummy_network_logs.json", "r", encoding="utf-8") as f:
     records = json.load(f)
 df = pd.DataFrame(records)
 
-# Define categorical and numeric features based on engineered dataset
+# Define feature columns
 categorical_features = [
     "source.ip", "destination.ip", "network.transport", "event.action",
     "tcp.flags", "agent.version", "fleet.action.type", "message",
@@ -28,45 +32,57 @@ numeric_features = [
     "bytes_per_pkt", "msg_code", "is_suspicious_ratio"
 ]
 
-# Drop any records with missing values in required columns
+# Drop rows with missing values in essential columns
 required_columns = categorical_features + numeric_features + ["label"]
 df = df[required_columns].dropna()
 
-# Encode categorical features
+# Convert all categorical fields to string
+# Needed before encoding
 df[categorical_features] = df[categorical_features].astype(str)
+
+# Encode high-cardinality categorical features using hashing
 encoder = HashingEncoder(cols=categorical_features, n_components=32)
 X_cat_encoded = encoder.fit_transform(df[categorical_features])
 
-# Combine encoded and numeric features
+# Combine encoded categorical and numeric features
 X = pd.concat([X_cat_encoded, df[numeric_features].reset_index(drop=True)], axis=1)
 
-# Add Isolation Forest score
+# ---------------------------------------------
+# Add unsupervised anomaly score via Isolation Forest
+# ---------------------------------------------
 iso = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
 iso.fit(X)
 df["isoforest_score"] = iso.decision_function(X)
 X["isoforest_score"] = df["isoforest_score"]
 
-# Prepare target
+# Define the target label
 y = df["label"]
 
-# Train/test split
+# Split dataset into training and test sets (80/20)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train supervised models
+# ---------------------------------------------
+# Train supervised ML models
+# ---------------------------------------------
+
+# Initialize classifiers
 rf = RandomForestClassifier(random_state=42)
 log = LogisticRegression(max_iter=3000)
 xgb = XGBClassifier(eval_metric="logloss")
 
+# Fit models on training data
 rf.fit(X_train, y_train)
 log.fit(X_train, y_train)
 xgb.fit(X_train, y_train)
 
-# Predict
+# Predict labels on test data
 y_rf = rf.predict(X_test)
 y_log = log.predict(X_test)
 y_xgb = xgb.predict(X_test)
 
-# Evaluation
+# ---------------------------------------------
+# Evaluate models using standard classification metrics
+# ---------------------------------------------
 def evaluate(name, y_true, y_pred):
     print(f"\n--- {name} ---")
     print("Accuracy :", accuracy_score(y_true, y_pred))
@@ -78,15 +94,23 @@ evaluate("Random Forest", y_test, y_rf)
 evaluate("Logistic Regression", y_test, y_log)
 evaluate("XGBoost", y_test, y_xgb)
 
-# Save models and encoder
+# ---------------------------------------------
+# Save models and encoder for later use
+# ---------------------------------------------
+
+# Save Random Forest and Logistic Regression
 joblib.dump(rf, "../models/random_forest_model.pkl")
 joblib.dump(log, "../models/logistic_regression_model.pkl")
+
+# Save XGBoost model with encoder and feature metadata
 xgb_bundle = {
     "model": xgb,
     "encoder": encoder,
     "columns": X_train.columns.tolist()
 }
 joblib.dump(xgb_bundle, "../models/xgboost_model.pkl")
+
+# Save encoder separately (for preprocessing during inference)
 joblib.dump(encoder, "../models/ip_encoder_hashing.pkl")
 
 print("\nAll models are trained and saved with expanded features!")
