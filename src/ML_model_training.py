@@ -1,5 +1,6 @@
 import pandas as pd
 import json
+import os
 import joblib
 from category_encoders import HashingEncoder
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
@@ -97,10 +98,13 @@ evaluate("XGBoost", y_test, y_xgb)
 # ---------------------------------------------
 # Save models and encoder for later use
 # ---------------------------------------------
+# Always save to root-level models/ directory
+MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Save Random Forest and Logistic Regression
-joblib.dump(rf, "models/random_forest_model.pkl")
-joblib.dump(log, "models/logistic_regression_model.pkl")
+joblib.dump(rf, os.path.join(MODEL_DIR, "random_forest_model.pkl"))
+joblib.dump(log, os.path.join(MODEL_DIR, "logistic_regression_model.pkl"))
 
 # Save XGBoost model with encoder and feature metadata
 xgb_bundle = {
@@ -108,9 +112,7 @@ xgb_bundle = {
     "encoder": encoder,
     "columns": X_train.columns.tolist()
 }
-joblib.dump(xgb_bundle, "models/xgboost_model.pkl")
-
-# Save encoder separately (for preprocessing during inference)
-joblib.dump(encoder, "models/ip_encoder_hashing.pkl")
+joblib.dump(xgb_bundle, os.path.join(MODEL_DIR, "xgboost_model.pkl"))
+joblib.dump(encoder, os.path.join(MODEL_DIR, "ip_encoder_hashing.pkl"))
 
 print("\nAll models are trained and saved with expanded features!")
