@@ -99,8 +99,8 @@ evaluate("XGBoost", y_test, y_xgb)
 # ---------------------------------------------
 
 # Save Random Forest and Logistic Regression
-joblib.dump(rf, "../models/random_forest_model.pkl")
-joblib.dump(log, "../models/logistic_regression_model.pkl")
+joblib.dump(rf, "models/random_forest_model.pkl")
+joblib.dump(log, "models/logistic_regression_model.pkl")
 
 # Save XGBoost model with encoder and feature metadata
 xgb_bundle = {
@@ -108,9 +108,9 @@ xgb_bundle = {
     "encoder": encoder,
     "columns": X_train.columns.tolist()
 }
-joblib.dump(xgb_bundle, "../models/xgboost_model.pkl")
+joblib.dump(xgb_bundle, "models/xgboost_model.pkl")
 
 # Save encoder separately (for preprocessing during inference)
-joblib.dump(encoder, "../models/ip_encoder_hashing.pkl")
+joblib.dump(encoder, "models/ip_encoder_hashing.pkl")
 
 print("\nAll models are trained and saved with expanded features!")
