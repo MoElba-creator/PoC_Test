@@ -45,6 +45,8 @@ try:
     docs = list(results)
     print(f"Retrieved {len(docs)} logs.")
 
+    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+
     # Save logs to timestamped JSON
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(docs, f, indent=2)
