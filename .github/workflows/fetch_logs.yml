@@ -30,6 +30,14 @@ jobs:
       - name: Fetch last 5 minutes of logs from Elasticsearch
         run: python src/elasticsearch_import.py
 
+      - name: Debug model files
+        run: |
+          echo "Current working directory: $(pwd)"
+          echo "Listing models directory:"
+          ls -lh models || echo "⚠️ models folder missing"
+          file models/ip_encoder_hashing.pkl || echo "⚠️ encoder file unreadable"
+          python -c "import joblib; print('✅ Joblib import ok'); joblib.load('models/ip_encoder_hashing.pkl')" || echo '❌ Failed to load encoder'      
+
       - name: Run anomaly detection models on fresh logs
         run: python src/ML_batch_scan.py
 
