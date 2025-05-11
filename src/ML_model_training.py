@@ -113,6 +113,5 @@ xgb_bundle = {
     "columns": X_train.columns.tolist()
 }
 joblib.dump(xgb_bundle, os.path.join(MODEL_DIR, "xgboost_model.pkl"))
-joblib.dump(encoder, os.path.join(MODEL_DIR, "ip_encoder_hashing.pkl"))
 
 print("\nAll models are trained and saved with expanded features!")

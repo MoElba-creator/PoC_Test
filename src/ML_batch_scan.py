@@ -73,9 +73,16 @@ critical = [
 df.dropna(subset=critical, inplace=True)
 
 # ENCODE FEATURES
-encoder = joblib.load(os.path.join("models", "ip_encoder_hashing.pkl"))
+# Load XGBoost bundle (which includes the encoder)
+xgb_bundle = joblib.load(os.path.join("models", "xgboost_model.pkl"))
+xgb_model = xgb_bundle["model"]
+xgb_encoder = xgb_bundle["encoder"]
+xgb_expected_columns = xgb_bundle["columns"]
+
+# Prepare encoded features
 df[ENCODER_INPUT_COLUMNS] = df[ENCODER_INPUT_COLUMNS].astype(str)
-X_encoded = encoder.transform(df[ENCODER_INPUT_COLUMNS])
+X_encoded = xgb_encoder.transform(df[ENCODER_INPUT_COLUMNS])
+
 for col in NUMERIC_COLUMNS:
     X_encoded[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
@@ -85,16 +92,8 @@ iso_forest.fit(X_encoded)
 df["isoforest_score"] = iso_forest.decision_function(X_encoded)
 X_encoded["isoforest_score"] = df["isoforest_score"]
 
-# XGBOOST
-xgb_bundle = joblib.load(os.path.join("models", "xgboost_model.pkl"))
-xgb_model = xgb_bundle["model"]
-xgb_encoder = xgb_bundle["encoder"]
-xgb_expected_columns = xgb_bundle["columns"]
-
-X_encoded_xgb = xgb_encoder.transform(df[ENCODER_INPUT_COLUMNS])
-for col in NUMERIC_COLUMNS:
-    X_encoded_xgb[col] = df[col]
-X_encoded_xgb["isoforest_score"] = df["isoforest_score"]
+# Prepare XGBoost input
+X_encoded_xgb = X_encoded.copy()
 X_encoded_xgb = X_encoded_xgb[xgb_expected_columns]
 
 # SUPERVISED MODELS
