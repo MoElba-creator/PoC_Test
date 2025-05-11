@@ -1,4 +1,4 @@
-name: VIVES anomaly detection model training
+name: VIVES anomaly detection - Model training
 
 on:
   workflow_dispatch:
