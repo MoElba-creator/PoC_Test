@@ -23,10 +23,6 @@ now = datetime.now(timezone.utc)
 start_time = now - timedelta(minutes=5)
 end_time = now
 
-# Generate output filename with timestamp
-timestamp_str = now.strftime("%Y-%m-%dT%H-%M-%S")
-OUTPUT_PATH = f"../data/validation_logs_{timestamp_str}.json"
-
 print(f"Fetching logs from {start_time.isoformat()} to {end_time.isoformat()}")
 
 query = {
@@ -40,6 +36,9 @@ query = {
     },
     "_source": True
 }
+
+OUTPUT_PATH = "../data/validation_logs_latest.json"
+
 
 try:
     results = scan(es, query=query, index=INDEX, size=5000)

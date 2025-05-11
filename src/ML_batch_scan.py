@@ -9,9 +9,9 @@ from pathlib import Path
 # ──────────────────────────────────────────────
 # CONFIGURATION
 DATA_DIR = Path("../data")
-LATEST_LOGS_FILE = sorted(DATA_DIR.glob("validation_logs_*.json"), reverse=True)[0]
-PATH_OUTPUT_ALL = str(DATA_DIR / f"all_evaluated_logs_{datetime.utcnow().strftime('%Y-%m-%dT%H-%M-%S')}.json")
-PATH_OUTPUT_ANOMALIES = str(DATA_DIR / f"predicted_anomalies_{datetime.utcnow().strftime('%Y-%m-%dT%H-%M-%S')}.json")
+LATEST_LOGS_FILE = str(DATA_DIR / "validation_logs_latest.json")
+PATH_OUTPUT_ALL = str(DATA_DIR / "all_evaluated_logs_latest.json")
+PATH_OUTPUT_ANOMALIES = str(DATA_DIR / "predicted_anomalies_latest.json")
 
 RELEVANT_COLUMNS = [
     "source.ip", "destination.ip", "source.port", "destination.port", "network.transport",

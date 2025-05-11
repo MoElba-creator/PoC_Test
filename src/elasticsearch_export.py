@@ -16,16 +16,16 @@ INDEX_NAME = "network-anomalies-realtime"
 ALL_LOGS_INDEX = "network-anomalies-all-realtime"
 
 # Automatically select the latest files
-DATA_DIR = Path("../data")
-anomaly_files = sorted(DATA_DIR.glob("predicted_anomalies*.json"), reverse=True)
-all_logs_files = sorted(DATA_DIR.glob("all_evaluated_logs*.json"), reverse=True)
+INPUT_JSON = "../data/predicted_anomalies_latest.json"
+ALL_LOGS_JSON = "../data/all_evaluated_logs_latest.json"
 
-if not anomaly_files or not all_logs_files:
-    print("No matching JSON files found.")
+if not os.path.exists(INPUT_JSON):
+    print(f"File not found: {INPUT_JSON}")
+    exit(1)
+if not os.path.exists(ALL_LOGS_JSON):
+    print(f"File not found: {ALL_LOGS_JSON}")
     exit(1)
 
-INPUT_JSON = str(anomaly_files[0])
-ALL_LOGS_JSON = str(all_logs_files[0])
 print(f"Using anomaly file: {INPUT_JSON}")
 print(f"Using full logs file: {ALL_LOGS_JSON}")
 
