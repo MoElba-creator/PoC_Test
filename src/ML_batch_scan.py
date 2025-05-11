@@ -70,11 +70,16 @@ critical = [
     "source.ip", "destination.ip", "network.transport", "event.action",
     "source.port", "destination.port", "session.iflow_bytes", "session.iflow_pkts"
 ]
+print("Missing values before drop:")
+print(df[critical].isnull().sum())
+
 df.dropna(subset=critical, inplace=True)
+print("Number of rSows after cleanup:", len(df))
 
 # ENCODE FEATURES
 # Load XGBoost bundle (which includes the encoder)
-xgb_bundle = joblib.load(os.path.join("models", "xgboost_model.pkl"))
+MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+xgb_bundle = joblib.load(os.path.join(MODEL_DIR, "xgboost_model.pkl"))
 xgb_model = xgb_bundle["model"]
 xgb_encoder = xgb_bundle["encoder"]
 xgb_expected_columns = xgb_bundle["columns"]
@@ -97,8 +102,8 @@ X_encoded_xgb = X_encoded.copy()
 X_encoded_xgb = X_encoded_xgb[xgb_expected_columns]
 
 # SUPERVISED MODELS
-rf_model = joblib.load(os.path.join("models", "random_forest_model.pkl"))
-log_model = joblib.load(os.path.join("models", "logistic_regression_model.pkl"))
+rf_model = joblib.load(os.path.join(MODEL_DIR, "random_forest_model.pkl"))
+log_model = joblib.load(os.path.join(MODEL_DIR, "logistic_regression_model.pkl"))
 
 # PREDICTIONS
 df["RF_pred"] = rf_model.predict(X_encoded)
@@ -121,6 +126,7 @@ print(f"✔ All evaluated logs saved to: {PATH_OUTPUT_ALL}")
 # VOTING-BASED FILTER
 model_preds = df[["RF_pred", "LOG_pred", "XGB_pred"]].sum(axis=1)
 df_anomalies = df[model_preds >= 2]
+print(f"\nTotal anomalies predicted by majority voting: {len(df_anomalies)}")
 
 # FILTER OUT SAFE TRAFFIC
 df_anomalies_filtered = df_anomalies[
@@ -128,6 +134,7 @@ df_anomalies_filtered = df_anomalies[
     ~df_anomalies["source.ip"].isin(TRUSTED_SOURCE_IPS) &
     ~df_anomalies["destination.ip"].isin(TRUSTED_DEST_IPS)
 ].copy()
+print(f"Final filtered anomalies: {len(df_anomalies_filtered)}")
 
 df_anomalies_filtered["user_feedback"] = None
 df_anomalies_filtered["reviewed"] = False
