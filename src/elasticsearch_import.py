@@ -10,6 +10,8 @@ load_dotenv()
 ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
 INDEX = "logs-*"
+TRACKING_INDEX = "etl-log-tracking"  # New index to track last successful run
+PIPELINE_NAME = "vives-etl"          # Identifier for this pipeline
 
 # Initialize client
 es = Elasticsearch(
@@ -18,19 +20,41 @@ es = Elasticsearch(
     verify_certs=True
 )
 
-# Calculate time window: now - 5 minutes
-now = datetime.now(timezone.utc)
-start_time = now - timedelta(minutes=5)
-end_time = now
+# NEW: Get last successful run timestamp
+def get_last_run_time():
+    try:
+        res = es.search(index=TRACKING_INDEX, body={
+            "size": 1,
+            "sort": [{"last_run_time": "desc"}],
+            "query": {"term": {"pipeline": PIPELINE_NAME}}
+        })
+        if res["hits"]["hits"]:
+            return res["hits"]["hits"][0]["_source"]["last_run_time"]
+    except:
+        pass
+    return (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()  # fallback
 
-print(f"Fetching logs from {start_time.isoformat()} to {end_time.isoformat()}")
+# NEW: Save this run's end timestamp
+def store_last_run_time(end_time):
+    es.index(index=TRACKING_INDEX, document={
+        "pipeline": PIPELINE_NAME,
+        "last_run_time": end_time,
+        "status": "success"
+    })
+
+# ─────────────────────────────────────────────────────
+# Use real last run time
+start_time = get_last_run_time()
+end_time = datetime.now(timezone.utc).isoformat()
+
+print(f"Fetching logs from {start_time} to {end_time}")
 
 query = {
     "query": {
         "range": {
             "@timestamp": {
-                "gte": start_time.isoformat(),
-                "lte": end_time.isoformat()
+                "gte": start_time,
+                "lte": end_time
             }
         }
     },
