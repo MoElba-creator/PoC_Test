@@ -16,7 +16,7 @@ today = datetime.now().strftime("%Y%m%d_%Hh")
 RUN_DIR = Path(f"data/training_runs/{today}_candidate")
 RUN_DIR.mkdir(parents=True, exist_ok=True)
 
-INPUT_FILE = "data/gelabelde_anomalieën.json"
+INPUT_FILE = "data/latest_feedback.json"
 if not os.path.exists(INPUT_FILE):
     print(f"❌ Bestand niet gevonden: {INPUT_FILE}")
     exit(1)
