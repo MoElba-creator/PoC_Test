@@ -17,13 +17,21 @@ st.set_page_config(page_title="VIVES Network logging anomalies review", layout="
 # --- Sidebar Filters First (important for datetime vars) ---
 st.sidebar.title("🔄 Filtering")
 
-if st.sidebar.button("Reset filters"):
-    st.session_state["group_filter_option"] = "Show all"
-    st.session_state["doc_id_filter"] = ""
-    st.session_state["source_ip"] = ""
-    st.session_state["destination_ip"] = ""
-    st.session_state["protocol"] = ""
-    st.session_state["score_threshold"] = 0.0
+col_reset, col_clear = st.sidebar.columns(2)
+
+with col_reset:
+    if st.button("Reset filters"):
+        st.session_state["group_filter_option"] = "Show all"
+        st.session_state["doc_id_filter"] = ""
+        st.session_state["source_ip"] = ""
+        st.session_state["destination_ip"] = ""
+        st.session_state["protocol"] = ""
+        st.session_state["score_threshold"] = 0.0
+
+with col_clear:
+    if st.button("Clear dashboard filter"):
+        st.experimental_set_query_params()
+        st.rerun()
 
 group_filter_option = st.sidebar.selectbox("Group filter", ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"], key="group_filter_option")
 doc_id_filter = st.sidebar.text_input("Search on unique log ID", key="doc_id_filter").strip()
@@ -40,7 +48,10 @@ if max_logs > MAX_SAFE_LOGS:
     max_logs = MAX_SAFE_LOGS
 
 # --- URL-based timestamp filtering (from dashboard) ---
-qs = st.query_params
+if "url_params_buffer" not in st.session_state:
+    st.session_state["url_params_buffer"] = st.query_params
+
+qs = st.session_state["url_params_buffer"]
 from_ts = qs.get("from_ts", [None])[0]
 to_ts = qs.get("to_ts", [None])[0]
 try:
