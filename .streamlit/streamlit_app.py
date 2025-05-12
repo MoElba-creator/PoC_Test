@@ -3,7 +3,7 @@ from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 import os
 from pathlib import Path
-from datetime import datetime, time as dt_time
+from datetime import datetime, timezone, time as dt_time
 from collections import defaultdict
 import json
 from PIL import Image
@@ -259,7 +259,8 @@ try:
                 with col1:
                     if st.button(f"🕵️ Mark as suspicious", key=f"group_yes_{group_id}"):
                         for doc_id, _ in items:
-                            es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True}})
+                            feedback_time = datetime.now(timezone.utc).isoformat()
+                            es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True, "feedback_timestamp": feedback_time}})
                         st.success("✔️ Marked as suspicious")
                         st.rerun()
                 with col2:
@@ -277,7 +278,7 @@ try:
 
                     if st.button(f"🕵️ Mark as missed anomaly", key=f"group_fn_{group_id}"):
                         for doc_id, log in items:
-                            es.index(index=ANOMALY_INDEX, document={**log, "user_feedback": "correct", "reviewed": True})
+                            es.index(index=ANOMALY_INDEX, document={**log, "user_feedback": "correct", "reviewed": True, "feedback_timestamp": feedback_time})
                             es.update(index=ALL_LOGS_INDEX, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True}})
                         st.success("✔️ False negative promoted to anomaly index.")
                         st.rerun()
