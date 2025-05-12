@@ -183,7 +183,6 @@ try:
     {"@timestamp": {"order": "desc", "unmapped_type": "date"}}] }
 
 
-        @st.cache_data(ttl=300)
         def query_elasticsearch(index_name, query):
             return es.search(index=index_name, body=query)["hits"]["hits"]
 
