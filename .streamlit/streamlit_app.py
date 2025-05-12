@@ -265,7 +265,7 @@ try:
                 with col2:
                     if st.button(f"✅ Mark as normal", key=f"group_no_{group_id}"):
                         for doc_id, _ in items:
-                            es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "incorrect", "reviewed": True}})
+                            es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "incorrect", "reviewed": True, "feedback_timestamp": feedback_time }})
                         st.warning("✔️ Marked as normal")
                         st.rerun()
 
@@ -278,7 +278,7 @@ try:
                     if st.button(f"🕵️ Mark as missed anomaly", key=f"group_fn_{group_id}"):
                         for doc_id, log in items:
                             es.index(index=ANOMALY_INDEX, document={**log, "user_feedback": "correct", "reviewed": True, "feedback_timestamp": feedback_time})
-                            es.update(index=ALL_LOGS_INDEX, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True}})
+                            es.update(index=ALL_LOGS_INDEX, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True, "feedback_timestamp": feedback_time }})
                         st.success("✔️ False negative promoted to anomaly index.")
                         st.rerun()
 
