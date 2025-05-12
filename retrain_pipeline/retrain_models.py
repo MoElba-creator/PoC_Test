@@ -30,6 +30,7 @@ print(f"✅ Feedback opgeslagen onder: {RUN_DIR}/feedback.json")
 
 # === 2. Load & check data ===
 df = pd.json_normalize(data)
+print(f"🔍 Available columns in loaded DataFrame:\n{df.columns.tolist()}")
 if "user_feedback" not in df.columns:
     print("❌ Kolom 'user_feedback' ontbreekt.")
     exit(1)
