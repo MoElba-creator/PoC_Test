@@ -6,26 +6,33 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def check_login():
-    correct_username = os.getenv("LOGIN_USER")
-    correct_password_hash = os.getenv("LOGIN_PASS_HASH").encode("utf-8")
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
 
-    # ✅ Already authenticated? Continue with app
-    if st.session_state.get("authenticated"):
+    if st.session_state["authenticated"]:
         return
 
-    # 🧱 Login form
-    st.sidebar.subheader("🔐 Login")
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    submit = st.sidebar.button("Login")
+    correct_username = os.getenv("LOGIN_USER")
+    correct_password_hash_raw = os.getenv("LOGIN_PASS_HASH")
 
-    if submit:
+    if not correct_username or not correct_password_hash_raw:
+        st.error("❌ Login is misconfigured: missing LOGIN_USER or LOGIN_PASS_HASH.")
+        st.stop()
+
+    correct_password_hash = correct_password_hash_raw.encode("utf-8")
+
+    # Login form in main screen
+    st.title("🔐 Login Required")
+    with st.form("login_form"):
+        username = st.text_input("Username", key="login_username")
+        password = st.text_input("Password", type="password", key="login_password")
+        submitted = st.form_submit_button("Login")
+
+    if submitted:
         if username == correct_username and bcrypt.checkpw(password.encode("utf-8"), correct_password_hash):
-            st.session_state.authenticated = True
-            st.success("✔️ Logged in successfully")
-            st.rerun()  # 🔁 Force page refresh to show app content
+            st.session_state["authenticated"] = True
+            st.rerun()
         else:
             st.error("❌ Incorrect username or password")
 
-    # 🚫 Stop the app if not logged in
     st.stop()

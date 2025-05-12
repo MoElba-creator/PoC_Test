@@ -9,10 +9,10 @@ import json
 from PIL import Image
 from core.auth import check_login
 
+check_login()
 
 st.set_page_config(page_title="VIVES Network logging anomalies review", layout="wide")
 
-check_login()
 
 # --- Sidebar Filters First (important for datetime vars) ---
 st.sidebar.title("🔄 Filtering")
