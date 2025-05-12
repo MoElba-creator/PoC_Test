@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timezone, timedelta
 from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
+import shutil
 
 # === 1. Load environment variables ===
 load_dotenv()
@@ -11,9 +12,11 @@ ES_API_KEY = os.getenv("ES_API_KEY")
 INDEX_NAME = "network-anomalies"
 TRACKING_INDEX = "etl-log-tracking"
 PIPELINE_NAME = "vives-feedback-export"
+
+# Generate filenames
 timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-OUTPUT_FILE = f"data/feedback_snapshot_{timestamp}.json"
-LATEST_SYMLINK = "data/latest_feedback.json"
+SNAPSHOT_FILE = f"data/feedback_snapshot_{timestamp}.json"
+LATEST_FILE = "data/latest_feedback.json"
 
 # === 2. Connect to Elasticsearch ===
 es = Elasticsearch(
@@ -22,7 +25,7 @@ es = Elasticsearch(
     headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=8"},
 )
 
-# === 3. Fetch last export timestamp ===
+# === 3. Get last export time ===
 def get_last_export_time():
     try:
         res = es.search(index=TRACKING_INDEX, body={
@@ -34,9 +37,9 @@ def get_last_export_time():
             return res["hits"]["hits"][0]["_source"]["last_run_time"]
     except:
         pass
-    return (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()  # fallback: 1 day ago
+    return (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
 
-# === 4. Store new export timestamp ===
+# === 4. Store export time ===
 def store_export_time(end_time):
     es.index(index=TRACKING_INDEX, document={
         "pipeline": PIPELINE_NAME,
@@ -44,7 +47,7 @@ def store_export_time(end_time):
         "status": "success"
     })
 
-# === 5. Define time range and query ===
+# === 5. Define time range and feedback filter ===
 start_time = get_last_export_time()
 end_time = datetime.now(timezone.utc).isoformat()
 print(f"Fetching feedback between {start_time} and {end_time}")
@@ -71,7 +74,7 @@ query = {
     }
 }
 
-# === 6. Execute query and scroll through results ===
+# === 6. Execute query and collect hits ===
 try:
     resp = es.search(index=INDEX_NAME, body=query, scroll="2m", size=1000)
     sid = resp["_scroll_id"]
@@ -86,11 +89,16 @@ try:
         all_hits.extend(hits)
 
     print(f"Retrieved {len(all_hits)} feedback logs")
+
 except Exception as e:
     print(f"Failed to fetch logs from Elasticsearch: {e}")
     exit(1)
 
-# === 7. Save to JSON file ===
+# === 7. Save snapshot and copy to latest if logs exist ===
+if not all_hits:
+    print("No feedback logs found — skipping export.")
+    exit(0)
+
 try:
     os.makedirs("data", exist_ok=True)
     logs = []
@@ -99,11 +107,15 @@ try:
         doc["_id"] = hit["_id"]
         logs.append(doc)
 
-    # Save timestamped version
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+    with open(SNAPSHOT_FILE, "w", encoding="utf-8") as f:
         json.dump(logs, f, indent=2, ensure_ascii=False)
-    print(f"Feedback successfully exported to: {OUTPUT_FILE}")
+    print(f"Feedback exported to: {SNAPSHOT_FILE}")
+
+    shutil.copy(SNAPSHOT_FILE, LATEST_FILE)
+    print(f"🪄 Copied to latest: {LATEST_FILE}")
+
+    store_export_time(end_time)
 
 except Exception as e:
-    print(f"Failed to write JSON file: {e}")
+    print(f"Failed to write feedback JSON: {e}")
     exit(1)
