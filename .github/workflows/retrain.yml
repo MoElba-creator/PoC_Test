@@ -28,7 +28,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Export feedback from Elasticsearch
-        run: python retrain_pipeline/export_feedback.py
+        run: python retrain_pipeline/elasticsearch_export_feedback.py
 
       - name: Retrain candidate models
         run: python retrain_pipeline/retrain_models.py
