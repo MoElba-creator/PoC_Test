@@ -18,7 +18,7 @@ RUN_DIR.mkdir(parents=True, exist_ok=True)
 
 INPUT_FILE = "data/latest_feedback.json"
 if not os.path.exists(INPUT_FILE):
-    print(f"❌ Bestand niet gevonden: {INPUT_FILE}")
+    print(f"File not found: {INPUT_FILE}")
     exit(1)
 
 with open(INPUT_FILE, encoding="utf-8") as f:
@@ -26,23 +26,36 @@ with open(INPUT_FILE, encoding="utf-8") as f:
 
 with open(RUN_DIR / "feedback.json", "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
-print(f"✅ Feedback opgeslagen onder: {RUN_DIR}/feedback.json")
+print(f"Feedback saved to: {RUN_DIR}/feedback.json")
 
-# === 2. Load & check data ===
-df = pd.json_normalize(data)
-print(f"🔍 Available columns in loaded DataFrame:\n{df.columns.tolist()}")
-if "user_feedback" not in df.columns:
-    print("❌ Kolom 'user_feedback' ontbreekt.")
-    exit(1)
+# === 2. Load & correct column names ===
+df = pd.DataFrame(data)
 
-df = df[df["user_feedback"].isin(["correct", "incorrect"])]
-df["label"] = df["user_feedback"].map({"correct": 1, "incorrect": 0})
+RENAME_TO_DOT = {
+    "source_ip": "source.ip",
+    "destination_ip": "destination.ip",
+    "network_transport": "network.transport",
+    "event_action": "event.action",
+    "tcp_flags": "tcp.flags",
+    "agent_version": "agent.version",
+    "fleet_action_type": "fleet.action.type",
+    "source_port": "source.port",
+    "destination_port": "destination.port",
+    "session_iflow_bytes": "session.iflow_bytes",
+    "session_iflow_pkts": "session.iflow_pkts",
+    "flow_duration": "flow.duration"
+}
+df.rename(columns=RENAME_TO_DOT, inplace=True)
 
+print(f"Columns available:\n{df.columns.tolist()}")
+
+# === 3. Define features
 categorical = [
     "source.ip", "destination.ip", "network.transport", "event.action",
     "tcp.flags", "agent.version", "fleet.action.type", "message",
     "proto_port_pair", "version_action_pair"
 ]
+
 numeric = [
     "source.port", "destination.port", "session.iflow_bytes", "session.iflow_pkts",
     "flow_count_per_minute", "unique_dst_ports", "bytes_ratio",
@@ -52,18 +65,21 @@ numeric = [
 required = categorical + numeric
 missing = [col for col in required if col not in df.columns]
 if missing:
-    print(f"❌ Vereiste kolommen ontbreken: {missing}")
+    print(f"Required columns missing: {missing}")
     exit(1)
 
+# === 4. Filter and prepare data
+df = df[df["user_feedback"].isin(["correct", "incorrect"])]
+df["label"] = df["user_feedback"].map({"correct": 1, "incorrect": 0})
 df = df[required + ["label"]].dropna()
 df[categorical] = df[categorical].astype(str)
 
-# === 3. Encode categorical
+# === 5. Encode categorical
 encoder = HashingEncoder(cols=categorical, n_components=32)
 X_cat = encoder.fit_transform(df[categorical])
 X = pd.concat([X_cat.reset_index(drop=True), df[numeric].reset_index(drop=True)], axis=1)
 
-# === 4. Add unsupervised score
+# === 6. Add Isolation Forest score
 iso = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
 iso.fit(X)
 df["isoforest_score"] = iso.decision_function(X)
@@ -71,10 +87,10 @@ X["isoforest_score"] = df["isoforest_score"]
 
 y = df["label"]
 
-# === 5. Split
+# === 7. Train/test split
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# === 6. Train models
+# === 8. Train models
 models = {
     "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
     "logistic_regression": LogisticRegression(max_iter=1000),
@@ -94,10 +110,10 @@ for name, model in models.items():
             }, model_path)
         else:
             joblib.dump(model, model_path)
-        print(f"✅ {name} model opgeslagen.")
+        print(f" {name} model saved.")
     except Exception as e:
-        print(f"❌ Fout bij trainen van {name}: {e}")
+        print(f"Failed to train {name}: {e}")
 
-# === 7. Save val set
+# === 9. Save validation set
 joblib.dump((X_val, y_val), RUN_DIR / "validation_set.pkl")
-print(f"📦 Validatieset opgeslagen.")
+print(f"📦 Validation set saved.")
