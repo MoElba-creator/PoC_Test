@@ -7,7 +7,9 @@ from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import IsolationForest
 from xgboost import XGBClassifier
+from category_encoders import HashingEncoder
 from sklearn.metrics import f1_score
 
 # === 1. Bestandsinstellingen ===
@@ -29,62 +31,72 @@ print(f"✅ Feedback opgeslagen onder: {RUN_DIR}/feedback.json")
 
 # === 2. Data voorbereiden ===
 df = pd.json_normalize(data)
-
-print("Kolommen gevonden:", df.columns.tolist())
 if "user_feedback" not in df.columns:
-    print("❌ Kolom 'user_feedback' ontbreekt in data.")
+    print("❌ Kolom 'user_feedback' ontbreekt.")
     exit(1)
 
 df = df[df["user_feedback"].isin(["correct", "incorrect"])]
 df["label"] = df["user_feedback"].map({"correct": 1, "incorrect": 0})
 
-features = [
-    "source_ip", "destination_ip", "source_port", "destination_port",
-    "network_transport", "session_iflow_bytes", "session_iflow_pkts"
+categorical = [
+    "source_ip", "destination_ip", "network_transport", "event_action",
+    "tcp_flags", "agent_version", "fleet_action_type", "message",
+    "proto_port_pair", "version_action_pair"
 ]
-if not all(f in df.columns for f in features):
-    print("❌ Sommige vereiste features ontbreken in de JSON.")
+numeric = [
+    "source_port", "destination_port", "session_iflow_bytes", "session_iflow_pkts",
+    "flow_count_per_minute", "unique_dst_ports", "bytes_ratio",
+    "port_entropy", "flow.duration", "bytes_per_pkt", "msg_code", "is_suspicious_ratio"
+]
+
+required = categorical + numeric
+if not all(col in df.columns for col in required):
+    print("❌ Vereiste kolommen ontbreken.")
     exit(1)
 
-df_selected = df[features + ["label"]].dropna()
+df = df[required + ["label"]].dropna()
+df[categorical] = df[categorical].astype(str)
 
-# === 3. Encodeer features ===
-try:
-    encoder = joblib.load("models/ip_encoder_hashing.pkl")
-    print("✅ Encoder geladen.")
-except Exception as e:
-    print(f"❌ Kan encoder niet laden: {e}")
-    exit(1)
+# === 3. Encode categorical features
+encoder = HashingEncoder(cols=categorical, n_components=32)
+X_cat = encoder.transform(df[categorical])
+X = pd.concat([X_cat.reset_index(drop=True), df[numeric].reset_index(drop=True)], axis=1)
 
-try:
-    X_encoded = encoder.transform(df_selected[features])
-except Exception as e:
-    print(f"❌ Fout tijdens transformeren met encoder: {e}")
-    exit(1)
+# === 4. Voeg isoforest_score toe
+iso = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
+iso.fit(X)
+df["isoforest_score"] = iso.decision_function(X)
+X["isoforest_score"] = df["isoforest_score"]
 
-y = df_selected["label"]
+y = df["label"]
 
-# === 4. Train/test split ===
-X_train, X_val, y_train, y_val = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
+# === 5. Split train/test
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# === 5. Definieer en train modellen ===
+# === 6. Train modellen
 models = {
     "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
     "logistic_regression": LogisticRegression(max_iter=1000),
     "xgboost": XGBClassifier(use_label_encoder=False, eval_metric="logloss")
 }
-
 os.makedirs("models", exist_ok=True)
 
 for name, model in models.items():
     try:
         model.fit(X_train, y_train)
-        candidate_path = f"models/{name}_candidate.pkl"
-        joblib.dump(model, candidate_path)
-        print(f"✅ {name} kandidaat-model opgeslagen.")
+        if name == "xgboost":
+            bundle = {
+                "model": model,
+                "encoder": encoder,
+                "columns": X_train.columns.tolist()
+            }
+            joblib.dump(bundle, f"models/{name}_candidate.pkl")
+        else:
+            joblib.dump(model, f"models/{name}_candidate.pkl")
+        print(f"✅ {name} model opgeslagen.")
     except Exception as e:
-        print(f"❌ Fout bij trainen/saven van {name}: {e}")
+        print(f"❌ Fout bij trainen van {name}: {e}")
 
-# === 6. Save val set for later evaluation ===
+# === 7. Save val set
 joblib.dump((X_val, y_val), RUN_DIR / "validation_set.pkl")
-print(f"📦 Validatieset opgeslagen voor evaluatie.")
+print(f"📦 Validatieset opgeslagen.")
