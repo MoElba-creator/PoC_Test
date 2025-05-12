@@ -16,13 +16,13 @@ def check_login():
     correct_password_hash_raw = os.getenv("LOGIN_PASS_HASH")
 
     if not correct_username or not correct_password_hash_raw:
-        st.error("❌ Login is misconfigured: missing LOGIN_USER or LOGIN_PASS_HASH.")
+        st.error("Login is misconfigured.")
         st.stop()
 
     correct_password_hash = correct_password_hash_raw.encode("utf-8")
 
     # Login form in main screen
-    st.title("🔐 Login Required")
+    st.title("Welcome! Please log in:")
     with st.form("login_form"):
         username = st.text_input("Username", key="login_username")
         password = st.text_input("Password", type="password", key="login_password")
@@ -33,6 +33,6 @@ def check_login():
             st.session_state["authenticated"] = True
             st.rerun()
         else:
-            st.error("❌ Incorrect username or password")
+            st.error("Incorrect username or password. Please try again.")
 
     st.stop()
