@@ -37,7 +37,7 @@ def get_last_export_time():
             return res["hits"]["hits"][0]["_source"]["last_run_time"]
     except:
         pass
-    return (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    return (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
 
 # === 4. Store export time ===
 def store_export_time(end_time):
@@ -58,7 +58,7 @@ query = {
             "must": [
                 {
                     "range": {
-                        "@timestamp": {
+                        "feedback_timestamp": {
                             "gte": start_time,
                             "lte": end_time
                         }
