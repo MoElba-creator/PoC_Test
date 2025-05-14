@@ -9,9 +9,6 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-# ---------------------------------------------
-# Load and preprocess network log data
-# ---------------------------------------------
 
 # Load synthetic network logs from JSON
 with open("../data/dummy_network_logs.json", "r", encoding="utf-8") as f:
