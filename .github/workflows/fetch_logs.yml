@@ -56,7 +56,7 @@ jobs:
       - name: Send email notification
         run: |
           pip install python-dotenv
-          python src/send_gmail.py
+          python src/send_mail.py
         env:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
