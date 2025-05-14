@@ -52,3 +52,12 @@ jobs:
 
       - name: Export logs and predictions to Elasticsearch
         run: python src/elasticsearch_export.py
+
+      - name: Send email notification
+        run: |
+          pip install python-dotenv
+          python src/send_gmail.py
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_RECIPIENT: ${{ secrets.SMTP_RECIPIENT }}

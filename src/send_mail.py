@@ -49,6 +49,9 @@ if __name__ == "__main__":
         with open("data/predicted_anomalies_latest.json", encoding="utf-8") as f:
             anomalies = json.load(f)
         count = len(anomalies)
+        if count == 0:
+            print("No anomalies found. Email will not be sent.")
+            exit(0)
     except Exception as e:
         print(f"Failed to load anomaly data: {e}")
         count = "unknown (error reading file)"
@@ -60,8 +63,9 @@ if __name__ == "__main__":
     <html>
     <body>
         <p><img src='cid:viveslogo' alt='VIVES Logo' style='height: 40px;'><br><br>
+        <b>Hey there!<br>
         <b>{count} anomalies</b> were detected in the latest batch.<br><br>
-        View details in:<br>
+        View details in Elasticsearch and Streamlit:<br>
         <a href="{dashboard_url}">Streamlit anomaly dashboard</a><br>
         <a href="{elastic_url}">Elasticsearch interface</a><br><br>
         This is an automated message.</p>
@@ -70,6 +74,6 @@ if __name__ == "__main__":
     """
 
     send_email(
-        subject="VIVES: Anomaly detection scan completed",
+        subject="VIVES alert: Anomalies detected in scan.",
         body_html=html_body
     )
