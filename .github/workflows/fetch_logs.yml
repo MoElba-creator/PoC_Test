@@ -50,12 +50,6 @@ jobs:
       - name: Run anomaly detection models on fresh logs
         run: python src/ML_batch_scan.py
 
-      - name: Print Working Directory
-        run: pwd
-
-      - name: List Data Directory Contents
-        run: ls -l ../data/
-
       - name: Export logs and predictions to Elasticsearch
         run: python src/elasticsearch_export.py
 
