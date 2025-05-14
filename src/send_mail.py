@@ -70,7 +70,7 @@ if __name__ == "__main__":
     <body>
         <p><img src='cid:viveslogo' alt='VIVES Logo' style='height: 40px;'><br><br>
         Dear colleague<br><br>
-        During a anomoly run there were <b>{count} anomalies</b> detected in the latest batch.<br><br>
+        During an automated and AI-powered anomaly detection run there were <b>{count} anomalies</b> detected in the latest batch.<br><br>
         View details in:
         <a href="{dashboard_url}">Streamlit anomaly dashboard</a><br>
         <a href="{elastic_url}">Elasticsearch interface</a><br><br>
