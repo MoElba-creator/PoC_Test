@@ -36,8 +36,18 @@ jobs:
       - name: Evaluate vs deployed model
         run: python retrain_pipeline/evaluate_models.py
 
+      - name: Send email notification
+        run: |
+          pip install python-dotenv
+          python src/send_gmail.py
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_RECIPIENT: ${{ secrets.SMTP_RECIPIENT }}
+
+
       - name: Upload feedback JSON artifact
-        if: always()  # ook als vorige stap faalt
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: feedback-json
