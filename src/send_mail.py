@@ -28,7 +28,7 @@ def send_email(subject, body_html):
     msg_alt.attach(MIMEText("This email requires HTML support.", "plain"))
     msg_alt.attach(MIMEText(body_html, "html"))
 
-    logo_path = Path("images/logo_vives.png")
+    logo_path = Path(__file__).resolve().parent.parent / "images" / "logo_vives.png"
     if logo_path.exists():
         with open(logo_path, 'rb') as img:
             logo_data = img.read()
@@ -45,8 +45,15 @@ def send_email(subject, body_html):
         print(f"Error sending email: {e}")
 
 if __name__ == "__main__":
+    base_dir = Path(__file__).resolve().parent.parent
+    anomaly_file = base_dir / "data" / "predicted_anomalies_latest.json"
+
+    if not anomaly_file.exists():
+        print("Anomaly file does not exist. Email will not be sent.")
+        exit(0)
+
     try:
-        with open("data/predicted_anomalies_latest.json", encoding="utf-8") as f:
+        with anomaly_file.open(encoding="utf-8") as f:
             anomalies = json.load(f)
         count = len(anomalies)
         if count == 0:
@@ -54,7 +61,7 @@ if __name__ == "__main__":
             exit(0)
     except Exception as e:
         print(f"Failed to load anomaly data: {e}")
-        count = "unknown (error reading file)"
+        exit(1)
 
     dashboard_url = os.getenv("DASHBOARD_URL", "https://vivesnetdetect.streamlit.app/")
     elastic_url = os.getenv("ELASTICSEARCH_URL", "https://uat.elastic.vives.cloud:5601/app/r/s/Ok4A0")
@@ -63,9 +70,9 @@ if __name__ == "__main__":
     <html>
     <body>
         <p><img src='cid:viveslogo' alt='VIVES Logo' style='height: 40px;'><br><br>
-        <b>Hey there!<br>
-        <b>{count} anomalies</b> were detected in the latest batch.<br><br>
-        View details in Elasticsearch and Streamlit:<br>
+        Dear colleague<br><br>
+        During a anomoly run there were <b>{count} anomalies</b> detected in the latest batch.<br><br>
+        View details in:
         <a href="{dashboard_url}">Streamlit anomaly dashboard</a><br>
         <a href="{elastic_url}">Elasticsearch interface</a><br><br>
         This is an automated message.</p>
@@ -74,6 +81,6 @@ if __name__ == "__main__":
     """
 
     send_email(
-        subject="VIVES alert: Anomalies detected in scan.",
+        subject="VIVES alert: Anomalies detected in networklogs.",
         body_html=html_body
     )
