@@ -45,8 +45,7 @@ def send_email(subject, body_html):
         print(f"Error sending email: {e}")
 
 if __name__ == "__main__":
-    base_dir = Path(__file__).resolve().parent.parent
-    anomaly_file = base_dir / "data" / "predicted_anomalies_latest.json"
+    anomaly_file = Path("data/predicted_anomalies_latest.json")
 
     if not anomaly_file.exists():
         print("Anomaly file does not exist. Email will not be sent.")
