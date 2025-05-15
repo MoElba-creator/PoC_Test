@@ -142,4 +142,4 @@ print(f"Final filtered anomalies: {len(df_anomalies_filtered)}")
 df_anomalies_filtered["user_feedback"] = None
 df_anomalies_filtered["reviewed"] = False
 df_anomalies_filtered.to_json(PATH_OUTPUT_ANOMALIES, orient="records", indent=2)
-print(f"✔ Anomalies exported to: {PATH_OUTPUT_ANOMALIES}")
+print(f"Anomalies exported to: {PATH_OUTPUT_ANOMALIES}")

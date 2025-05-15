@@ -123,15 +123,15 @@ def generate_traffic(n, label, pattern):
     common_ports = [53, 9200, 67, 2048, 53202, 68, 443, 770, 769, 4122, 4120, 445, 135, 88, 389, 123, 771, 47808, 49670,
                     4118]
     weights = [
-        0.55,  # 53 (DNS) — most common
+        0.55,  # 53 (DNS
         0.16,  # 9200 (Elasticsearch)
         0.10,  # 67 (DHCP)
         0.012,  # 2048
         0.01,  # 53202
         0.005,  # 68 (DHCP)
         0.004,  # 443 (HTTPS)
-        0.002, 0.002, 0.0015, 0.0012,  # 770, 769, 4122, 4120
-        0.001, 0.0008, 0.0007, 0.0005, 0.0005,  # 445, 135, 88, 389, 123
+        0.002, 0.002, 0.0015, 0.0012,
+        0.001, 0.0008, 0.0007, 0.0005, 0.0005,
         0.0003, 0.0003, 0.0002,
         0.0001
     ]
@@ -206,7 +206,7 @@ def generate_unusual_pairs(n):
         src_ip = generate_ip_from_range(*ip_categories[src_category])
         dst_ip = generate_ip_from_range(*ip_categories[dst_category])
 
-        #  Use the refined parameters (from DeepSeek suggestion and your feedback)
+        #  Use the refined parameters
         spacing = np.random.choice([0.1, 0.5, 2], p=[0.7, 0.2, 0.1])
         network_transport = np.random.choice(["tcp", "udp"], p=[0.3, 0.7])
         bytes_range = (10, 5000)
@@ -359,4 +359,4 @@ def generate_combined_traffic():
 if __name__ == "__main__":
     df = generate_combined_traffic()
     df.to_json("../data/dummy_network_logs.json", orient="records", indent=2)
-    print("✔ Successfully generated dummy network logs and saved to ../data/dummy_network_logs.json")
+    print("Successfully generated dummy network logs and saved to ../data/dummy_network_logs.json")
