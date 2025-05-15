@@ -20,7 +20,7 @@ es = Elasticsearch(
     verify_certs=True
 )
 
-# NEW: Get last successful run timestamp
+# Get last successful run timestamp
 def get_last_run_time():
     try:
         res = es.search(index=TRACKING_INDEX, body={
@@ -78,3 +78,6 @@ try:
 
 except Exception as e:
     print(f"Error fetching logs: {e}")
+
+print(f"Storing run for pipeline {PIPELINE_NAME} at {end_time}")
+store_last_run_time(end_time)
