@@ -5,8 +5,8 @@ import os
 from sklearn.ensemble import IsolationForest
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))  # Zorg dat synthetic_data_creation.py gevonden wordt
-from synthetic_data_creation import build_df  # Importeer feature engineering
+sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
+from synthetic_data_creation import build_df
 
 
 # ──────────────────────────────────────────────

@@ -5,6 +5,10 @@ import json
 from datetime import datetime
 from sklearn.ensemble import IsolationForest
 from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
+from synthetic_data_creation import build_df
+
 
 # ──────────────────────────────────────────────
 # CONFIGURATION
@@ -46,24 +50,8 @@ flattened_data = [r["_source"] for r in records if "_source" in r]
 df = pd.json_normalize(flattened_data)
 print("Records loaded:", len(df))
 
-# FILL MISSING COLUMNS WITH DEFAULTS
-safe_fill = {
-    "tcp.flags": "UNKNOWN",
-    "proto_port_pair": "UNKNOWN",
-    "version_action_pair": "UNKNOWN",
-    "flow_count_per_minute": 0,
-    "unique_dst_ports": 0,
-    "bytes_ratio": 0.0,
-    "port_entropy": 0.0,
-    "flow.duration": 0,
-    "bytes_per_pkt": 0.0,
-    "msg_code": 0,
-    "is_suspicious_ratio": False
-}
-for col, default in safe_fill.items():
-    if col not in df.columns:
-        df[col] = default
-    df[col] = df[col].fillna(default)
+# FEATURE ENGINEERING
+df = build_df(df)
 
 # DROP CRITICAL MISSING
 critical = [
