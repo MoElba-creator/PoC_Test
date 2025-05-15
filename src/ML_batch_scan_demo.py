@@ -35,7 +35,7 @@ LOW_RISK_PORTS = {67, 68, 123, 161, 162, 443, 53, 9200}
 TRUSTED_SOURCE_IPS = {"10.192.96.7", "10.192.96.8", "10.192.96.4"}
 TRUSTED_DEST_IPS = {"193.190.77.36"}
 
-PATH_VALIDATION = "../data/validation_dataset.json"
+PATH_VALIDATION = "../data/evaluated_logs_with_features_demo.json"
 PATH_OUTPUT_ALL = "../data/all_evaluated_logs.json"
 PATH_OUTPUT_ANOMALIES = "../data/predicted_anomalies.json"
 # ──────────────────────────────────────────────
