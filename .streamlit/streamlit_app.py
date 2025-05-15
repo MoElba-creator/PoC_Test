@@ -33,7 +33,7 @@ with col_clear:
         st.experimental_set_query_params()
         st.rerun()
 
-group_filter_option = st.sidebar.selectbox("Group filter", ["Show all", "Only grouped logs", "Only ungrouped logs (single-log groups)"], key="group_filter_option")
+group_filter_option = st.sidebar.selectbox("Group filter", ["Show all", "Only grouped logs", "Only single logs"], key="group_filter_option")
 doc_id_filter = st.sidebar.text_input("Search on unique log ID", key="doc_id_filter").strip()
 source_ip = st.sidebar.text_input("Filter on Source IP", key="source_ip")
 destination_ip = st.sidebar.text_input("Filter on Destination IP", key="destination_ip")
