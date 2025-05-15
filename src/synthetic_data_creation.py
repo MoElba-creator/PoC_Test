@@ -5,6 +5,8 @@ import random
 from scipy.stats import entropy
 import hashlib
 
+from streamlit_extras.stodo import to_do
+
 # Configuration
 random.seed(42)
 np.random.seed(42)
@@ -24,7 +26,8 @@ real_ips = [
     "10.195.211.176", "10.195.192.27", "10.199.5.96",
 ]
 
-# 1.  Introduce IP Categories and Unlikely Connections
+# Introduce IP Categories and Unlikely Connections
+# to_do Check with client / Modify
 ip_categories = {
     "Web_Server": ["192.0.2.1", "192.0.2.254"],
     "DNS_Server": ["198.51.100.1", "198.51.100.10"],
@@ -32,6 +35,8 @@ ip_categories = {
     "App_Server": ["192.168.1.1", "192.168.1.200"],
     "Database_Server": ["10.0.0.1", "10.0.10.254"],
     "User_PC": ["192.168.10.1", "192.168.10.254"],
+    "DHCP_Server": ["10.192.96.7", "10.192.96.8"],
+    "AV_Control_Server": ["10.192.96.4"],
     "Unknown": ["172.217.0.0", "172.217.255.255"]
 }
 unlikely_connections = {
@@ -39,7 +44,9 @@ unlikely_connections = {
     "Web_Server": ["Database_Server", "User_PC"],
     "App_Server": ["User_PC"],
     "DNS_Server": ["App_Server", "User_PC"],
-    "Database_Server": ["Unknown", "User_PC"]
+    "Database_Server": ["Unknown", "User_PC"],
+    "DHCP_Server": ["Web_Server", "Database_Server", "Mail_Server", "App_Server"],
+    "AV_Control_Server": ["Web_Server", "Database_Server", "Mail_Server", "DHCP_Server"] #only audiovisual
 }
 
 def generate_ip_from_range(start_ip, end_ip):
