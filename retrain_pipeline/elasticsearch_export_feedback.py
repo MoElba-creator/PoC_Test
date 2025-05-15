@@ -5,7 +5,7 @@ from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
 import shutil
 
-# === 1. Load environment variables ===
+# Load environment variables
 load_dotenv()
 ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
@@ -18,14 +18,14 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 SNAPSHOT_FILE = f"data/feedback_snapshot_{timestamp}.json"
 LATEST_FILE = "data/latest_feedback.json"
 
-# === 2. Connect to Elasticsearch ===
+# Connect to Elasticsearch
 es = Elasticsearch(
     hosts=[ES_HOST],
     api_key=ES_API_KEY,
     headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=8"},
 )
 
-# === 3. Get last export time ===
+# Get last export time
 def get_last_export_time():
     try:
         res = es.search(index=TRACKING_INDEX, body={
@@ -39,7 +39,7 @@ def get_last_export_time():
         pass
     return (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
 
-# === 4. Store export time ===
+# Store export time
 def store_export_time(end_time):
     es.index(index=TRACKING_INDEX, document={
         "pipeline": PIPELINE_NAME,
@@ -47,7 +47,7 @@ def store_export_time(end_time):
         "status": "success"
     })
 
-# === 5. Define time range and feedback filter ===
+# Define time range and feedback filter
 start_time = get_last_export_time()
 end_time = datetime.now(timezone.utc).isoformat()
 print(f"Fetching feedback between {start_time} and {end_time}")
@@ -74,7 +74,7 @@ query = {
     }
 }
 
-# === 6. Execute query and collect hits ===
+# Execute query and collect hits
 try:
     resp = es.search(index=INDEX_NAME, body=query, scroll="2m", size=1000)
     sid = resp["_scroll_id"]
@@ -94,7 +94,7 @@ except Exception as e:
     print(f"Failed to fetch logs from Elasticsearch: {e}")
     exit(1)
 
-# === 7. Save snapshot and copy to latest if logs exist ===
+# Save snapshot and copy to latest if logs exist
 if not all_hits:
     print("No feedback logs found — skipping export.")
     exit(0)

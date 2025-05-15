@@ -11,7 +11,7 @@ from xgboost import XGBClassifier
 from category_encoders import HashingEncoder
 from sklearn.metrics import f1_score
 
-# === 1. Setup paths ===
+#  Setup paths
 today = datetime.now().strftime("%Y%m%d_%Hh")
 RUN_DIR = Path(f"data/training_runs/{today}_candidate")
 RUN_DIR.mkdir(parents=True, exist_ok=True)
@@ -28,7 +28,7 @@ with open(RUN_DIR / "feedback.json", "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
 print(f"Feedback saved to: {RUN_DIR}/feedback.json")
 
-# === 2. Load & correct column names ===
+# Load & correct column names
 df = pd.DataFrame(data)
 
 RENAME_TO_DOT = {
@@ -49,7 +49,7 @@ df.rename(columns=RENAME_TO_DOT, inplace=True)
 
 print(f"Columns available:\n{df.columns.tolist()}")
 
-# === 3. Define features
+# Define features
 categorical = [
     "source.ip", "destination.ip", "network.transport", "event.action",
     "tcp.flags", "agent.version", "fleet.action.type", "message",
@@ -68,18 +68,18 @@ if missing:
     print(f"Required columns missing: {missing}")
     exit(1)
 
-# === 4. Filter and prepare data
+# Filter and prepare data
 df = df[df["user_feedback"].isin(["correct", "incorrect"])]
 df["label"] = df["user_feedback"].map({"correct": 1, "incorrect": 0})
 df = df[required + ["label"]].dropna()
 df[categorical] = df[categorical].astype(str)
 
-# === 5. Encode categorical
+# Encode categorical
 encoder = HashingEncoder(cols=categorical, n_components=32)
 X_cat = encoder.fit_transform(df[categorical])
 X = pd.concat([X_cat.reset_index(drop=True), df[numeric].reset_index(drop=True)], axis=1)
 
-# === 6. Add Isolation Forest score
+# Add Isolation Forest score
 iso = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
 iso.fit(X)
 df["isoforest_score"] = iso.decision_function(X)
@@ -87,10 +87,10 @@ X["isoforest_score"] = df["isoforest_score"]
 
 y = df["label"]
 
-# === 7. Train/test split
+# Train/test split
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# === 8. Train models
+# Train models
 models = {
     "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
     "logistic_regression": LogisticRegression(max_iter=1000),
@@ -114,6 +114,6 @@ for name, model in models.items():
     except Exception as e:
         print(f"Failed to train {name}: {e}")
 
-# === 9. Save validation set
+# Save validation set
 joblib.dump((X_val, y_val), RUN_DIR / "validation_set.pkl")
-print(f"📦 Validation set saved.")
+print(f"Validation set saved.")

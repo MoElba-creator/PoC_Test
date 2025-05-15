@@ -5,11 +5,10 @@ from sklearn.metrics import f1_score
 from datetime import datetime
 from pathlib import Path
 
-# === Instellingen ===
 MODEL_DIR = Path("models")
 TRAINING_RUN_DIR = sorted(Path("data/training_runs").glob("*_candidate"))[-1]  # laatste run
 
-# === 1. Laad validatieset ===
+# Load validation dataset
 val_path = TRAINING_RUN_DIR / "validation_set.pkl"
 if not val_path.exists():
     print(f"Validationset missing: {val_path}")
@@ -18,10 +17,10 @@ if not val_path.exists():
 X_val, y_val = joblib.load(val_path)
 print("Validation set loaded.")
 
-# === 2. Definieer modelnamen ===
+
 model_names = ["random_forest", "logistic_regression", "xgboost"]
 
-# === 3. Vergelijk kandidaatmodellen met gedeployde modellen ===
+# Compare models
 for name in model_names:
     candidate_path = MODEL_DIR / f"{name}_candidate.pkl"
     deployed_path = MODEL_DIR / f"{name}_deployed.pkl"
@@ -46,7 +45,7 @@ for name in model_names:
         print(f"No deployed model found for  {name}. Accept new model.")
         f1_deployed = -1
 
-    print(f"📊 {name} → Candidate F1: {f1_candidate:.3f} vs Deployed F1: {f1_deployed:.3f}")
+    print(f" {name} Candidate F1: {f1_candidate:.3f} vs Deployed F1: {f1_deployed:.3f}")
 
     # === 4. Beslissing: kandidaat promoten? ===
     if f1_candidate > f1_deployed:
@@ -62,13 +61,13 @@ for name in model_names:
             shutil.copy(source_feedback, accepted_feedback)
             print(f"Feedback snapshot labeled as: {accepted_feedback}")
 
-        # hernoem map van kandidaat naar accepted
+        # Rename map name to accepted
         accepted_path = Path(str(TRAINING_RUN_DIR).replace("_candidate", "_accepted"))
         TRAINING_RUN_DIR.rename(accepted_path)
         print(f"Trainingmap renamed to: {accepted_path}")
     else:
 
-        # === Copy feedback snapshot and label as rejected ===
+        #  Copy feedback snapshot and label as rejected
         snapshot_basename = TRAINING_RUN_DIR.name.replace("_candidate", "")
         source_feedback = Path("data/latest_feedback.json")
         rejected_feedback = Path(f"data/feedback_snapshot_{snapshot_basename}_rejected.json")
@@ -77,7 +76,7 @@ for name in model_names:
             shutil.copy(source_feedback, rejected_feedback)
             print(f"Feedback labeled as: {rejected_feedback}")
 
-        # hernoem naar rejected
+        # raneme to rejected
         rejected_path = Path(str(TRAINING_RUN_DIR).replace("_candidate", "_rejected"))
         TRAINING_RUN_DIR.rename(rejected_path)
         print(f"Model didn't improve. Map renamed to: {rejected_path}")
