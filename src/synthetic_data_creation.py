@@ -36,7 +36,7 @@ ip_categories = {
     "Database_Server": ["10.0.0.1", "10.0.10.254"],
     "User_PC": ["192.168.10.1", "192.168.10.254"],
     "DHCP_Server": ["10.192.96.7", "10.192.96.8"],
-    "AV_Control_Server": ["10.192.96.4"],
+    "AV_Control_Server": ["10.192.96.4", "10.192.96.5"],
     "Unknown": ["172.217.0.0", "172.217.255.255"]
 }
 unlikely_connections = {
