@@ -254,11 +254,11 @@ try:
 
             with st.expander(group_title):
                 group_id = f"{src_ip}_{dst_ip}_{proto}_{group_time.strftime('%Y-%m-%d_%H:%M:%S')}"
+                feedback_time = datetime.now(timezone.utc).isoformat()
                 col1, col2 = st.columns([1, 1])
                 with col1:
                     if st.button(f"🕵️ Mark as suspicious", key=f"group_yes_{group_id}"):
                         for doc_id, _ in items:
-                            feedback_time = datetime.now(timezone.utc).isoformat()
                             es.update(index=INDEX_NAME, id=doc_id, body={"doc": {"user_feedback": "correct", "reviewed": True, "feedback_timestamp": feedback_time}})
                         st.success("✔️ Marked as suspicious")
                         st.rerun()
@@ -272,7 +272,7 @@ try:
                 if show_unflagged_logs:
                     if score_threshold < 0.7:
                         st.warning(
-                            "⚠️ Viewing false negatives requires a higher minimum score (>= 0.7) to avoid slowdowns.")
+                            "Viewing false negatives requires a higher minimum score (>= 0.7) to avoid slowdowns.")
                         st.stop()
 
                     if st.button(f"🕵️ Mark as missed anomaly", key=f"group_fn_{group_id}"):
