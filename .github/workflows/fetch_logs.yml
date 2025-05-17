@@ -43,9 +43,9 @@ jobs:
         run: |
           echo "Current working directory: $(pwd)"
           echo "Listing models directory:"
-          ls -lh models || echo "⚠️ models folder missing"
-          file models/xgboost_model.pkl || echo "⚠️ encoder file unreadable"
-          python -c "import joblib; print('✅ Joblib import ok'); joblib.load('models/xgboost_model.pkl')" || echo '❌ Failed to load encoder'      
+          ls -lh models || echo " models folder missing"
+          file models/xgboost_model.pkl || echo "encoder file unreadable"
+          python -c "import joblib; print('Joblib import ok'); joblib.load('models/xgboost_model.pkl')" || echo '❌ Failed to load encoder'      
 
       - name: Run anomaly detection models on fresh logs
         run: python src/ML_batch_scan.py

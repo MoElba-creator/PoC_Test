@@ -208,7 +208,7 @@ try:
         for (src_ip, dst_ip, proto, group_time), items in groups.items():
             if group_filter_option == "Only grouped logs" and len(items) == 1:
                 continue
-            elif group_filter_option == "Only ungrouped logs (single-log groups)" and len(items) > 1:
+            elif group_filter_option == "Only single logs" and len(items) > 1:
                 continue
 
             rf_scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
