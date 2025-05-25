@@ -3,7 +3,7 @@ name: VIVES anomaly detection - Model training
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"  # Dagelijks om 03:00 's nachts
+    - cron: "0 3 * * *"  # Daily at 3 AM. See https://crontab.guru/
 
 jobs:
   retrain-evaluate:

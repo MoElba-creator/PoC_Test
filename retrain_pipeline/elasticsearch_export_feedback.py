@@ -19,6 +19,7 @@ from datetime import datetime, timezone, timedelta
 from elasticsearch import Elasticsearch
 from dotenv import load_dotenv
 import shutil
+from pathlib import Path
 
 # Load environment variables
 load_dotenv()
@@ -30,9 +31,12 @@ TRACKING_INDEX = "etl-log-tracking"
 PIPELINE_NAME = "vives-feedback-export"
 
 # Generate file paths
+BASE_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = BASE_DIR / "data"
+
 timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-SNAPSHOT_FILE = f"data/feedback_snapshot_{timestamp}.json"
-LATEST_FILE = "data/latest_feedback.json"
+SNAPSHOT_FILE = DATA_DIR / f"feedback_snapshot_{timestamp}.json"
+LATEST_FILE = DATA_DIR / "latest_feedback.json"
 
 # Connect to Elasticsearch
 es = Elasticsearch(
@@ -116,7 +120,7 @@ if not all_hits:
     exit(0)
 
 try:
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(DATA_DIR, exist_ok=True)
     logs = []
     for hit in all_hits:
         doc = hit["_source"]
@@ -128,7 +132,7 @@ try:
     print(f"Feedback exported to: {SNAPSHOT_FILE}")
 
     shutil.copy(SNAPSHOT_FILE, LATEST_FILE)
-    print(f"🪄 Copied to latest: {LATEST_FILE}")
+    print(f"Copied to latest: {LATEST_FILE}")
 
     store_export_time(end_time)
 

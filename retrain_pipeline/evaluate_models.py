@@ -26,8 +26,15 @@ from pathlib import Path
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
-MODEL_DIR = Path("models")
-TRAINING_RUN_DIR = sorted(Path("data/training_runs").glob("*_candidate"))[-1]
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+MODEL_DIR = BASE_DIR / "models"
+candidate_dirs = sorted((DATA_DIR / "training_runs").glob("*_candidate"))
+if not candidate_dirs:
+    print("No candidate training run found in data/training_runs.")
+    exit(1)
+
+TRAINING_RUN_DIR = candidate_dirs[-1]
 
 # Load validation dataset
 val_path = TRAINING_RUN_DIR / "validation_set.pkl"
@@ -92,14 +99,14 @@ for name in model_names:
     )
 
     snapshot_base = TRAINING_RUN_DIR.name.replace("_candidate", "")
-    source_feedback = Path("data/latest_feedback.json")
+    source_feedback = DATA_DIR / "latest_feedback.json"
 
     if promote:
         joblib.dump(candidate_model, deployed_path)
         print(f"{name} promoted: F1 improved, no drop in precision or recall.")
 
         # Label feedback as accepted
-        accepted_feedback = Path(f"data/feedback_snapshot_{snapshot_base}_accepted.json")
+        accepted_feedback = DATA_DIR / f"feedback_snapshot_{snapshot_base}_accepted.json"
         if source_feedback.exists():
             shutil.copy(source_feedback, accepted_feedback)
             print(f"Feedback saved as: {accepted_feedback}")
@@ -108,13 +115,13 @@ for name in model_names:
         accepted_path = Path(str(TRAINING_RUN_DIR).replace("_candidate", "_accepted"))
         TRAINING_RUN_DIR.rename(accepted_path)
         print(f"Training folder renamed to: {accepted_path}")
-        TRAINING_RUN_DIR = accepted_path  # update path for metrics
+        TRAINING_RUN_DIR = accepted_path
 
     else:
         print(f"{name} not promoted because criteria were not met.")
 
         # Label feedback as rejected
-        rejected_feedback = Path(f"data/feedback_snapshot_{snapshot_base}_rejected.json")
+        rejected_feedback = DATA_DIR / f"feedback_snapshot_{snapshot_base}_rejected.json"
         if source_feedback.exists():
             shutil.copy(source_feedback, rejected_feedback)
             print(f"Feedback saved as: {rejected_feedback}")
@@ -123,7 +130,7 @@ for name in model_names:
         rejected_path = Path(str(TRAINING_RUN_DIR).replace("_candidate", "_rejected"))
         TRAINING_RUN_DIR.rename(rejected_path)
         print(f"Training folder renamed to: {rejected_path}")
-        TRAINING_RUN_DIR = rejected_path  # update path for metrics
+        TRAINING_RUN_DIR = rejected_path
 
 # Save metrics to file
 metrics_path = TRAINING_RUN_DIR / "metrics.json"

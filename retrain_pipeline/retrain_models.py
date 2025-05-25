@@ -16,12 +16,17 @@ import json
 import pandas as pd
 import joblib
 from datetime import datetime
-from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier, IsolationForest
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 from category_encoders import HashingEncoder
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = BASE_DIR / "data"
+MODEL_DIR = BASE_DIR / "models"
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 # Setup folder for this training run
 today = datetime.now().strftime("%Y%m%d_%Hh")
@@ -29,8 +34,8 @@ RUN_DIR = Path(f"data/training_runs/{today}_candidate")
 RUN_DIR.mkdir(parents=True, exist_ok=True)
 
 # Input here is the feedback file exported via elasticsearch_export_feedback
-INPUT_FILE = "data/latest_feedback.json"
-if not os.path.exists(INPUT_FILE):
+INPUT_FILE = DATA_DIR / "latest_feedback.json"
+if not INPUT_FILE.exists():
     print(f"File not found: {INPUT_FILE}")
     exit(1)
 
@@ -113,12 +118,12 @@ models = {
     "logistic_regression": LogisticRegression(max_iter=1000),
     "xgboost": XGBClassifier(use_label_encoder=False, eval_metric="logloss")
 }
-os.makedirs("models", exist_ok=True)
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 for name, model in models.items():
     try:
         model.fit(X_train, y_train)
-        model_path = f"models/{name}_candidate.pkl"
+        model_path = MODEL_DIR / f"{name}_candidate.pkl"
         if name == "xgboost":
             joblib.dump({
                 "model": model,
