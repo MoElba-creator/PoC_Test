@@ -1,4 +1,14 @@
+"""
+Script: streamlit_app.py
+Authors: Moussa El Bazioui and Laurens Rasschaert
+Project: Bachelor thesis — data-driven anomaly detection
 
+Purpose:
+This is the Streamlit frontend used to review logs evaluated by the ML models.
+Users can filter logs, inspect grouped anomalies and give feedback.
+False negatives can be promoted to the anomaly index.
+All interactions update Elasticsearch in real time.
+"""
 
 import streamlit as st
 from elasticsearch import Elasticsearch
@@ -11,16 +21,18 @@ import json
 from PIL import Image
 from core.auth import check_login
 
+# Check login session
 check_login()
 
+# Page settings
 st.set_page_config(page_title="VIVES Network logging anomalies review", layout="wide")
 
 
-# --- Sidebar Filters First (important for datetime vars) ---
+# Sidebar filtering
 st.sidebar.title("🔄 Filtering")
-
 col_reset, col_clear = st.sidebar.columns(2)
 
+# Reset filters
 with col_reset:
     if st.button("Reset filters"):
         st.session_state["group_filter_option"] = "Show all"
@@ -30,11 +42,13 @@ with col_reset:
         st.session_state["protocol"] = ""
         st.session_state["score_threshold"] = 0.0
 
+# Clear dashboard query filters
 with col_clear:
     if st.button("Clear dashboard filter"):
         st.experimental_set_query_params()
         st.rerun()
 
+# Sidebar options
 group_filter_option = st.sidebar.selectbox("Group filter", ["Show all", "Only grouped logs", "Only single logs"], key="group_filter_option")
 doc_id_filter = st.sidebar.text_input("Search on unique log ID", key="doc_id_filter").strip()
 source_ip = st.sidebar.text_input("Filter on Source IP", key="source_ip")
@@ -49,7 +63,7 @@ if max_logs > MAX_SAFE_LOGS:
     st.warning(f"Showing more than {MAX_SAFE_LOGS} logs may slow down performance.")
     max_logs = MAX_SAFE_LOGS
 
-# --- URL-based timestamp filtering (from dashboard) ---
+# Timestamp filters from querystring or manual input
 qs = st.query_params
 from_ts = qs.get("from_ts", [None])[0]
 to_ts = qs.get("to_ts", [None])[0]
@@ -89,7 +103,11 @@ except Exception:
     if end_dt < start_dt:
         end_dt = start_dt
 
-# --- Indexes and connection ---
+if st.sidebar.button("Logout"):
+    from core.auth import logout
+    logout()
+
+# Elasticsearch index config and credentials
 ANOMALY_INDEX = "network-anomalies"
 ALL_LOGS_INDEX = "network-anomalies-all"
 
@@ -103,7 +121,7 @@ es = Elasticsearch(
     request_timeout=30
 )
 
-# --- Logo ---
+# Load logo
 logo_path = Path(__file__).resolve().parent.parent / "images" / "logo_vives.png"
 if not logo_path.exists():
     st.error(f"Logo not found at: {logo_path}")
@@ -119,7 +137,7 @@ with col1:
 with col2:
     st.title("Network logging anomalies review")
 
-#  Toggle false negative view
+# Show all logs incl false negatives
 show_unflagged_logs = st.sidebar.checkbox("Show all evaluated logs", value=False)
 
 if show_unflagged_logs:
@@ -155,7 +173,7 @@ else:
     INDEX_NAME = ANOMALY_INDEX
 
 
-# Query Elasticsearch
+# Query Elasticsearch based on current filter settings
 try:
     if doc_id_filter:
         query = { "query": { "ids": { "values": [doc_id_filter] } } }
@@ -163,6 +181,7 @@ try:
         res = es.search(index=indexes, body=query)
         hits = res["hits"]["hits"]
     else:
+        # Base query for unknown feedback logs within selected time range
         base_query = {
             "bool": {
                 "must": [
@@ -171,6 +190,7 @@ try:
                 ]
             }
         }
+        # Optional filters from sidebar
         if source_ip:
             base_query["bool"]["must"].append({"term": {"source_ip.keyword": source_ip}})
         if destination_ip:
@@ -190,6 +210,7 @@ try:
     if not hits:
         st.success("✅ No anomalies were found. Consider adjusting the filters.")
     else:
+        # Group logs by time and source/dest/protocol
         groups = defaultdict(list)
         for hit in hits:
             source = hit["_source"]
@@ -204,12 +225,14 @@ try:
             group_key = (source.get("source_ip"), source.get("destination_ip"), source.get("network_transport"), bucket_time)
             groups[group_key].append((doc_id, source))
 
+        # Process each group and apply filters
         for (src_ip, dst_ip, proto, group_time), items in groups.items():
             if group_filter_option == "Only grouped logs" and len(items) == 1:
                 continue
             elif group_filter_option == "Only single logs" and len(items) > 1:
                 continue
 
+            # Calculate average ML scores per group
             rf_scores = [s.get("RF_score", 0) for _, s in items if isinstance(s.get("RF_score", 0), (int, float))]
             iso_scores = [s.get("isoforest_score", 0) for _, s in items if isinstance(s.get("isoforest_score", 0), (int, float))]
             xgb_scores = [s.get("XGB_score", 0) for _, s in items if isinstance(s.get("XGB_score", 0), (int, float))]

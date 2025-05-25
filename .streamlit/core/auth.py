@@ -1,3 +1,14 @@
+"""
+Script: auth.py
+Authors: Moussa El Bazioui and Laurens Rasschaert
+Project: Bachelor thesis — data-driven anomaly detection
+
+Purpose:
+This script provides Streamlit-based login functionality using credentials stored in a .env file.
+The user's session state is used to persist authentication status.
+Only after successful login is the main interface accessible.
+"""
+
 import streamlit as st
 import bcrypt
 import os
@@ -6,8 +17,10 @@ from pathlib import Path
 from PIL import Image
 import base64
 
+# Load environment variables from .env file
 load_dotenv()
 
+# Login guard used by all Streamlit pages
 def check_login():
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False
@@ -15,17 +28,21 @@ def check_login():
     if st.session_state["authenticated"]:
         return
 
+    # Read login credentials from env
     correct_username = os.getenv("LOGIN_USER")
     correct_password_hash_raw = os.getenv("LOGIN_PASS_HASH")
 
     if not correct_username or not correct_password_hash_raw:
         st.error("Login is misconfigured.")
         st.stop()
+
+    # Prepare hashed password
     correct_password_hash = correct_password_hash_raw.encode("utf-8")
 
+    # Configure login page
     st.set_page_config(page_title="Login | Anomaly Detection", layout="centered")
 
-    # ─── Load logo and encode ─────────────────────────────────────────────
+    # Load and encode logo for inline display
     logo_path = Path(__file__).resolve().parent.parent.parent / "images" / "logo_vives.png"
     logo_base64 = ""
     if logo_path.exists():
@@ -38,7 +55,7 @@ def check_login():
             logo_base64 = base64.b64encode(f.read()).decode()
         tmp_path.unlink(missing_ok=True)
 
-    # ─── CSS + Animatie ───────────────────────────────────────────────────
+    # Custom CSS and login form styling
     st.markdown(f"""
         <style>
         body {{
@@ -119,6 +136,7 @@ def check_login():
         </div>
     """, unsafe_allow_html=True)
 
+    # Streamlit login form
     with st.form("login_form"):
         username = st.text_input("Username", key="username")
         password = st.text_input("Password", type="password", key="password")
@@ -126,6 +144,7 @@ def check_login():
 
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # When submitted validate credentials
     if submitted:
         if username == correct_username and bcrypt.checkpw(password.encode("utf-8"), correct_password_hash):
             st.session_state["authenticated"] = True
@@ -137,3 +156,7 @@ def check_login():
             st.error("Incorrect username or password.")
 
     st.stop()
+
+def logout():
+    st.session_state["authenticated"] = False
+    st.rerun()
