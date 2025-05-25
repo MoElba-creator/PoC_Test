@@ -1,3 +1,16 @@
+"""
+Script: elasticsearch_import_demo.py
+Author: Moussa El Bazioui and Laurens Rasschaert
+Project: Bachelorproef — Data-driven anomaly detection on network logs
+
+Purpose:
+FOR DEMO AND TESTING PURPOSES ONLY. This script pulls the most recent logs from an Elasticsearch index.
+It uses a tracking index to remember the last fetch time so we only grab new logs.
+The output is saved to JSON and used as input for downstream model evaluation.
+
+This is part of the ETL flow before ML_batch_scan.py runs.
+"""
+
 import os
 import json
 from datetime import datetime, timedelta, timezone
@@ -5,15 +18,18 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
 from dotenv import load_dotenv
 
-# Configuratie load from .env
+# Load credentials from .env file
 load_dotenv()
-
 ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
+
+# Main log index
 INDEX = "logs-*"
+
+# Where to save the output
 OUTPUT_PATH = "../data/validation_dataset.json"
 
-# Elasticsearch client settings
+# Connect to Elasticsearch
 es = Elasticsearch(
     ES_HOST,
     api_key=ES_API_KEY,
@@ -51,7 +67,7 @@ duration = timedelta(minutes=15)
 
 all_docs = []
 
-# Fetch logs
+# Fetch logs for each block
 for start_time in start_times:
     end_time = start_time + duration
     print(f"Logs fetching from {start_time.isoformat()} until {end_time.isoformat()}...")
@@ -77,7 +93,7 @@ for start_time in start_times:
     except Exception as e:
         print(f"Error  {start_time} – {end_time}: {e}")
 
-# JSON export
+# Export combined logs to file in JSON
 with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
     json.dump(all_docs, f, indent=2)
 

@@ -1,3 +1,16 @@
+"""
+Script: elasticsearch_import.py
+Author: Moussa El Bazioui and Laurens Rasschaert
+Project: Bachelorproef — Data-driven anomaly detection on network logs
+
+Purpose:
+This script pulls the most recent logs from an Elasticsearch index.
+It uses a tracking index to remember the last fetch time so we only grab new logs.
+The output is saved to JSON and used as input for downstream model evaluation.
+
+This is part of the ETL flow before ML_batch_scan.py runs.
+"""
+
 import os
 import json
 from datetime import datetime, timedelta, timezone
@@ -5,22 +18,24 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
 from dotenv import load_dotenv
 
-# Load Elasticsearch config from .env
+# Load credentials from .env file
 load_dotenv()
 ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
-INDEX = "logs-*"
-TRACKING_INDEX = "etl-log-tracking"  # New index to track last successful run
-PIPELINE_NAME = "vives-etl"          # Identifier for this pipeline
 
-# Initialize client
+# Main log index and metadata tracking index
+INDEX = "logs-*"
+TRACKING_INDEX = "etl-log-tracking"
+PIPELINE_NAME = "vives-etl"
+
+# Connect to Elasticsearch
 es = Elasticsearch(
     ES_HOST,
     api_key=ES_API_KEY,
     verify_certs=True
 )
 
-# Get last successful run timestamp
+# Return the last timestamp this pipeline was executed
 def get_last_run_time():
     try:
         res = es.search(index=TRACKING_INDEX, body={
@@ -32,9 +47,10 @@ def get_last_run_time():
             return res["hits"]["hits"][0]["_source"]["last_run_time"]
     except:
         pass
-    return (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()  # fallback
+    # If tracking index fails or is empty then fallback to last 10 minutes
+    return (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
 
-# NEW: Save this run's end timestamp
+# Write a new timestamp after successful fetch
 def store_last_run_time(end_time):
     es.index(index=TRACKING_INDEX, document={
         "pipeline": PIPELINE_NAME,
@@ -42,13 +58,13 @@ def store_last_run_time(end_time):
         "status": "success"
     })
 
-# ─────────────────────────────────────────────────────
-# Use real last run time
+# Figure out time window to pull
 start_time = get_last_run_time()
 end_time = datetime.now(timezone.utc).isoformat()
 
 print(f"Fetching logs from {start_time} to {end_time}")
 
+# Build Elasticsearch query to filter by @timestamp
 query = {
     "query": {
         "range": {
@@ -61,17 +77,20 @@ query = {
     "_source": True
 }
 
+# Output path for the pulled logs
 OUTPUT_PATH = "../data/validation_logs_latest.json"
 
 
 try:
+    # Stream through the result set
     results = scan(es, query=query, index=INDEX, size=5000)
     docs = list(results)
     print(f"Retrieved {len(docs)} logs.")
 
+    # Make sure output dir exists
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
 
-    # Save logs to timestamped JSON
+    # Write to file as pretty JSON
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(docs, f, indent=2)
     print(f"Saved logs to {OUTPUT_PATH}")
@@ -79,5 +98,6 @@ try:
 except Exception as e:
     print(f"Error fetching logs: {e}")
 
+# Register this run in the tracking index
 print(f"Storing run for pipeline {PIPELINE_NAME} at {end_time}")
 store_last_run_time(end_time)

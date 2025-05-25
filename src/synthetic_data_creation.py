@@ -1,11 +1,37 @@
+"""
+Script: synthetic_data_creation.py
+Author: Moussa El Bazioui and Laurens Rasschaert
+Project: Bachelorproef — Data-driven anomaly detection on network logs
+
+
+Purpose:
+This script generates synthetic network traffic logs for training and validating machine learning models
+the goal is to simulate realistic traffic patterns including both normal activity and various anomalies.
+
+What this script does:
+1. Defines real and synthetic ip ranges with category logic to simulate user-server interactions.
+2. Creates normal traffic using probabilistic distributions for ports, bytes and packets.
+3. Simulates vertical scans  and horizontal scans.
+4. Simulates spikes to single destination ip like ddos patterns.
+5. Creates records with unusual ip pairings using predefined category violations.
+6. Performs inline feature engineering like port entropy and bytes ratio.
+7. Builds a combined dataset labeled for anomaly detection use.
+8. Exports the full dataset as json for further use by ML_model_training.py script.
+
+Extra notes:
+- Byte and pkt distributions are log-normal to reflect real net pattern.
+- About 50pct of flows are zero-byte to match real logs.
+- Entropy is used as a proxy for randomness in port activity
+- Session id is stable hash based on source dest and port
+- Used as input for testing synthetic vs real data match in dummy_real_analysis.py.
+"""
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import random
 from scipy.stats import entropy
 import hashlib
-
-from streamlit_extras.stodo import to_do
 
 # Configuration
 random.seed(42)
@@ -26,8 +52,8 @@ real_ips = [
     "10.195.211.176", "10.195.192.27", "10.199.5.96",
 ]
 
-# Introduce IP Categories and Unlikely Connections
-# to_do Check with client / Modify
+# Introduce IP categories and unlikely connections
+# to_do check with client / modify
 ip_categories = {
     "Web_Server": ["192.0.2.1", "192.0.2.254"],
     "DNS_Server": ["198.51.100.1", "198.51.100.10"],
@@ -190,7 +216,7 @@ def generate_traffic(n, label, pattern):
     return df
 
 
-# 2.  Modify the Unusual IP Pairs Generation
+# Modify the unusual IP pairs generation
 def generate_unusual_pairs(n):
     """Generates n "unusual IP pair" records."""
     data = []
@@ -318,7 +344,7 @@ def build_df(base_df):
     return df
 
 
-# 3.  Combine Traffic Generation
+# Combine traffic generation
 def generate_combined_traffic():
     """Combines normal and anomalous traffic generation."""
     df = pd.concat([
@@ -355,7 +381,7 @@ def generate_combined_traffic():
     return df
 
 
-# 4. Main Execution
+# Main Execution
 if __name__ == "__main__":
     df = generate_combined_traffic()
     df.to_json("../data/dummy_network_logs.json", orient="records", indent=2)

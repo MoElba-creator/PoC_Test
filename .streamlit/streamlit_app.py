@@ -1,3 +1,5 @@
+
+
 import streamlit as st
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
@@ -48,10 +50,7 @@ if max_logs > MAX_SAFE_LOGS:
     max_logs = MAX_SAFE_LOGS
 
 # --- URL-based timestamp filtering (from dashboard) ---
-if "url_params_buffer" not in st.session_state:
-    st.session_state["url_params_buffer"] = st.query_params
-
-qs = st.session_state["url_params_buffer"]
+qs = st.query_params
 from_ts = qs.get("from_ts", [None])[0]
 to_ts = qs.get("to_ts", [None])[0]
 try:

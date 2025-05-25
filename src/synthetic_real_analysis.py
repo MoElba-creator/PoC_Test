@@ -11,7 +11,7 @@ machine learning models and apply detection logic.
 
 What this script does:
 1. Loads dummy and real log datasets in JSON format. Run script dummy_data_creation.py and elasticsearch_export.py first.
-2. Compares their column structures: What fields exist in each?
+2. Compares their column structures such as 'what fields exist in each?'
 3. Compares data types and finds shared numerical columns.
 4. Checks for missing values.
 5. Shows descriptive statistics like min, max, mean for shared numerical fields.
@@ -159,7 +159,7 @@ if 'label' in dummy_df.columns:
     plt.tight_layout()
     plt.show()
 
-# Port scan visualization (optimized)
+# Port scan visualization
 if 'label' in dummy_df.columns:
     scan_df = dummy_df[dummy_df["label"] == 1]
     scan_summary = scan_df.groupby("source.ip")["destination.port"].nunique()

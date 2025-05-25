@@ -1,3 +1,17 @@
+"""
+Script: elasticsearch_export_demo.py
+Author: Moussa El Bazioui and Laurens Rasschaert
+Project: Bachelorproef — Data-driven anomaly detection on network logs
+
+Purpose:
+This script exports DEMO anomaly detection results back into Elasticsearch.
+It pushes two sets of data:
+1. Anomalies that were predicted as suspicious.
+2. All evaluated logs so normal and anomalous.
+
+Used for visualizations, feedback loops and a Kibana dashboard.
+"""
+
 import os
 import json
 import pandas as pd
@@ -5,32 +19,33 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk, BulkIndexError
 from dotenv import load_dotenv
 
-# Configuration
+# Load config from .env
 load_dotenv()
-
 ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
+
+# Elasticsearch target indices for demo
 INDEX_NAME = "network-anomalies"
-INPUT_JSON = "../data/predicted_anomalies.json"
 ALL_LOGS_INDEX = "network-anomalies-all"
+
+# Input files for demo export
+INPUT_JSON = "../data/predicted_anomalies.json"
 ALL_LOGS_JSON = "../data/all_evaluated_logs.json"
 
-#lasticsearch connection with API key
+# Connect to Elasticsearch
 es = Elasticsearch(
     ES_HOST,
     api_key=ES_API_KEY,
     verify_certs=True
 )
 
-# JSON load
+# Load anomaly records
 with open(INPUT_JSON, "r", encoding="utf-8") as f:
     records = json.load(f)
 
 print(f"JSON records loaded: {len(records)}")
 
-# Panda dataframe
 df = pd.DataFrame(records)
-
 # Underscore replace for Elasticserach export
 df.columns = [col.replace(".", "_") for col in df.columns]
 
@@ -47,8 +62,6 @@ else:
 
 df = df.fillna("unknown")
 
-df = df.fillna("unknown")
-
 # Conversion to elasticsearch format
 def df_to_elastic_format(df, index_name):
     for _, row in df.iterrows():
@@ -57,7 +70,7 @@ def df_to_elastic_format(df, index_name):
             "_source": row.to_dict()
         }
 
-# Send to Elasticsearch
+# Upload anomaly data to index
 try:
     success, _ = bulk(es, df_to_elastic_format(df, INDEX_NAME))
     print(f""
@@ -67,13 +80,12 @@ except BulkIndexError as e:
     for err in e.errors[:5]:
         print(json.dumps(err, indent=2))
 
-# Load all evaluated logs JSON
+# Upload all evaluated logs
 with open(ALL_LOGS_JSON, "r", encoding="utf-8") as f:
     full_records = json.load(f)
 
 print(f"All evaluated records loaded: {len(full_records)}")
 
-# DataFrame
 df_all = pd.DataFrame(full_records)
 df_all.columns = [col.replace(".", "_") for col in df_all.columns]
 
@@ -98,7 +110,7 @@ def df_to_elastic_format(df, index_name):
             "_source": row.to_dict()
         }
 
-# Send to Elasticsearch
+# Upload all logs to separate index
 try:
     success, _ = bulk(es, df_to_elastic_format(df_all, ALL_LOGS_INDEX))
     print(f"{success} records uploaded to: {ALL_LOGS_INDEX}")

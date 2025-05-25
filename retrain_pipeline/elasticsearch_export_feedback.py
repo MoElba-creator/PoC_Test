@@ -1,3 +1,18 @@
+"""
+Script: elasticsearch_export.py
+Author: Moussa El Bazioui and Laurens Rasschaert
+Project: Bachelorproef — Data-driven anomaly detection on network logs
+
+Purpose:
+This script exports user feedback logs from Elasticsearch.
+It checks when the last feedback export ran, then pulls all feedback labeled as "correct" or "incorrect" since that timestamp.
+Two output files are created:
+- a timestamped snapshot for backup
+- a stable latest_feedback.json for retraining pipelines
+
+Used as part of retrain_pipeline to extract feedback for model updates.
+"""
+
 import os
 import json
 from datetime import datetime, timezone, timedelta
@@ -9,11 +24,12 @@ import shutil
 load_dotenv()
 ES_HOST = os.getenv("ES_HOST")
 ES_API_KEY = os.getenv("ES_API_KEY")
+
 INDEX_NAME = "network-anomalies"
 TRACKING_INDEX = "etl-log-tracking"
 PIPELINE_NAME = "vives-feedback-export"
 
-# Generate filenames
+# Generate file paths
 timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 SNAPSHOT_FILE = f"data/feedback_snapshot_{timestamp}.json"
 LATEST_FILE = "data/latest_feedback.json"
@@ -25,7 +41,7 @@ es = Elasticsearch(
     headers={"Accept": "application/vnd.elasticsearch+json; compatible-with=8"},
 )
 
-# Get last export time
+# Retrieve timestamp of last successful export
 def get_last_export_time():
     try:
         res = es.search(index=TRACKING_INDEX, body={
@@ -39,7 +55,7 @@ def get_last_export_time():
         pass
     return (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
 
-# Store export time
+# Save current run timestamp
 def store_export_time(end_time):
     es.index(index=TRACKING_INDEX, document={
         "pipeline": PIPELINE_NAME,
@@ -47,7 +63,7 @@ def store_export_time(end_time):
         "status": "success"
     })
 
-# Define time range and feedback filter
+# Define query range and feedback filter
 start_time = get_last_export_time()
 end_time = datetime.now(timezone.utc).isoformat()
 print(f"Fetching feedback between {start_time} and {end_time}")
