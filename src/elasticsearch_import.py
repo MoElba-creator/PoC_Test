@@ -48,16 +48,31 @@ def get_last_run_time():
         print(f"DEBUG: Querying TRACKING_INDEX with: {json.dumps(query_body)}")
         res = es.search(index=TRACKING_INDEX, body=query_body)
         print(f"DEBUG: Response from TRACKING_INDEX search: {json.dumps(res)}") # Print entire response
-        if res["hits"]["hits"]:
-            print(f"DEBUG: Found hits in TRACKING_INDEX.")
-            return res["hits"]["hits"][0]["_source"]["last_run_time"]
+        if hasattr(res, 'body'):
+            print(f"DEBUG: Response body from TRACKING_INDEX search: {res.body}")
+        elif isinstance(res, dict):
+            print(f"DEBUG: Response (dict) from TRACKING_INDEX search: {res}")
         else:
             print(f"DEBUG: No hits found in TRACKING_INDEX for pipeline {PIPELINE_NAME}.")
+        hits_list = res.get("hits", {}).get("hits", [])
+        if hits_list:  # Check if the list of hits is not empty
+            print(f"DEBUG: Found {len(hits_list)} hit(s) in TRACKING_INDEX.")
+            first_hit = hits_list[0]
+            source = first_hit.get("_source")
+            if source and "last_run_time" in source:
+                return source["last_run_time"]
+            else:
+                print(f"DEBUG: First hit found, but missing _source or last_run_time field. Hit: {first_hit}")
+        else:
+            print(f"DEBUG: No hits found in TRACKING_INDEX for pipeline {PIPELINE_NAME}.")
+
     except Exception as e:
-        print(f"WARNING: get_last_run_time() fell back to fallback of 10 minutes. Problem: {e}")
-    # If tracking index fails or is empty then fallback to last 10 minutes
-    print(f"DEBUG: Proceeding with 10-minute fallback.")
+        print(
+            f"WARNING: get_last_run_time() fell back to fallback of 10 minutes. Problem: {e}\nTraceback: {traceback.format_exc()}")
+
+    print(f"DEBUG: Proceeding with 10-minute fallback in get_last_run_time.")
     return (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+
 
 # Write a new timestamp after successful fetch
 def store_last_run_time(run_end_time):
