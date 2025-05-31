@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
 from dotenv import load_dotenv
+import logging
 
 # Load credentials from .env file
 load_dotenv()
@@ -46,8 +47,8 @@ def get_last_run_time():
         })
         if res["hits"]["hits"]:
             return res["hits"]["hits"][0]["_source"]["last_run_time"]
-    except:
-        pass
+    except Exception as e:
+        print(f"WARNING: get_last_run_time() fell back to fallback of 10 minutes. Problem: {e}")
     # If tracking index fails or is empty then fallback to last 10 minutes
     return (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
 
@@ -69,15 +70,13 @@ start_time_str = get_last_run_time()
 start_time_dt = datetime.fromisoformat(start_time_str.replace("Z", "+00:00"))
 FETCH_UP_TO_NOW_MARGIN = timedelta(seconds=10)
 end_time_dt = datetime.now(timezone.utc) - FETCH_UP_TO_NOW_MARGIN
-end_time_str = end_time_dt.isoformat(timespec='milliseconds') + 'Z'
-
-if start_time_dt >= end_time_dt:
-    print(f"No new logs to fetch: start time ({start_time_dt.isoformat()}) is equal or later than ({end_time_dt.isoformat()}).")
-    sys.exit(0)
 
 start_time_iso = start_time_dt.isoformat(timespec='milliseconds') + 'Z'
 end_time_iso = end_time_dt.isoformat(timespec='milliseconds') + 'Z'
 
+if start_time_dt >= end_time_dt:
+    print(f"No new logs to fetch: start time ({start_time_dt.isoformat()}) is equal or later than ({end_time_dt.isoformat()}).")
+    sys.exit(0)
 
 print(f"Fetching logs from {start_time_iso} to {end_time_iso}")
 
@@ -87,7 +86,7 @@ query = {
         "range": {
             "@timestamp": {
                 "gte": start_time_iso,
-                "lte": end_time_iso
+                "lt": end_time_iso
             }
         }
     },
@@ -114,7 +113,16 @@ try:
 
 except Exception as e:
     print(f"Error fetching logs: {e}")
+    sys.exit(1)
 
 # Register this run in the tracking index
-print(f"Storing run for pipeline {PIPELINE_NAME} at {start_time_iso}")
-store_last_run_time(end_time_iso)
+if docs:
+    try:
+        max_timestamp = max(doc['_source'].get('@timestamp', '') for doc in docs if '@timestamp' in doc['_source'])
+        print(f"Storing run for pipeline {PIPELINE_NAME} at {max_timestamp} (based on max @timestamp)")
+        store_last_run_time(max_timestamp)
+    except Exception as e:
+        print(f"Failed to determine max timestamp: {e}")
+else:
+    print(f"No logs found, storing fallback end_time: {end_time_iso}")
+    store_last_run_time(end_time_iso)
