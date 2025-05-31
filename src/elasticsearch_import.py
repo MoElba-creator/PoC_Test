@@ -118,11 +118,21 @@ except Exception as e:
 # Register this run in the tracking index
 if docs:
     try:
-        max_timestamp = max(doc['_source'].get('@timestamp', '') for doc in docs if '@timestamp' in doc['_source'])
-        print(f"Storing run for pipeline {PIPELINE_NAME} at {max_timestamp} (based on max @timestamp)")
-        store_last_run_time(max_timestamp)
-    except Exception as e:
-        print(f"Failed to determine max timestamp: {e}")
+        valid_timestamps = [
+            doc['_source']['@timestamp']
+            for doc in docs
+            if doc.get('_source') and isinstance(doc['_source'].get('@timestamp'), str) and doc['_source']['@timestamp']
+        ]
+        if not valid_timestamps:
+            print(f"No valid @timestamp found in {len(docs)} retrieved logs. Storing calculated query end_time: {end_time_iso}")
+            store_last_run_time(end_time_iso)
+        else:
+            max_timestamp = max(valid_timestamps)
+            print(f"Storing run for pipeline {PIPELINE_NAME} at {max_timestamp} (based on max @timestamp from docs)")
+            store_last_run_time(max_timestamp)
+    except Exception as e: # Catch broader errors during this block
+        print(f"Error processing max timestamp: {e}. Storing calculated query end_time {end_time_iso} as fallback.")
+        store_last_run_time(end_time_iso)
 else:
     print(f"No logs found, storing fallback end_time: {end_time_iso}")
     store_last_run_time(end_time_iso)
