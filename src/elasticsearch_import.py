@@ -13,6 +13,7 @@ This is part of the ETL flow before ML_batch_scan.py runs.
 
 import os
 import json
+import sys
 from datetime import datetime, timedelta, timezone
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
@@ -58,19 +59,29 @@ def store_last_run_time(end_time):
         "status": "success"
     })
 
-# Figure out time window to pull
-start_time = get_last_run_time()
-end_time = datetime.now(timezone.utc).isoformat()
+start_time_str = get_last_run_time()
+start_time_dt = datetime.fromisoformat(start_time_str.replace("Z", "+00:00"))
+FETCH_UP_TO_NOW_MARGIN = timedelta(seconds=10)
+end_time_dt = datetime.now(timezone.utc) - FETCH_UP_TO_NOW_MARGIN
+end_time_str = end_time_dt.isoformat(timespec='milliseconds') + 'Z'
 
-print(f"Fetching logs from {start_time} to {end_time}")
+if start_time_dt >= end_time_dt:
+    print(f"No new logs to fetch: start time ({start_time_dt.isoformat()}) is equal or later than ({end_time_dt.isoformat()}).")
+    sys.exit(0)
+
+start_time_iso = start_time_dt.isoformat(timespec='milliseconds') + 'Z'
+end_time_iso = end_time_dt.isoformat(timespec='milliseconds') + 'Z'
+
+
+print(f"Fetching logs from {start_time_iso} to {end_time_iso}")
 
 # Build Elasticsearch query to filter by @timestamp
 query = {
     "query": {
         "range": {
             "@timestamp": {
-                "gte": start_time,
-                "lte": end_time
+                "gte": start_time_iso,
+                "lte": end_time_iso
             }
         }
     },
@@ -99,5 +110,5 @@ except Exception as e:
     print(f"Error fetching logs: {e}")
 
 # Register this run in the tracking index
-print(f"Storing run for pipeline {PIPELINE_NAME} at {end_time}")
-store_last_run_time(end_time)
+print(f"Storing run for pipeline {PIPELINE_NAME} at {start_time_iso}")
+store_last_run_time(end_time_iso)
