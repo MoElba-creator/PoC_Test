@@ -18,7 +18,8 @@ from datetime import datetime, timedelta, timezone
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
 from dotenv import load_dotenv
-import logging
+import traceback
+
 
 # Load credentials from .env file
 load_dotenv()
@@ -43,36 +44,53 @@ def get_last_run_time():
         query_body = {
             "size": 1,
             "sort": [{"last_run_time": "desc"}],
+            # Using .keyword is good practice for exact term matches if your mapping supports it
             "query": {"term": {"pipeline.keyword": PIPELINE_NAME}}
         }
+        # This debug line for the query_body is fine as query_body is a Python dict
         print(f"DEBUG: Querying TRACKING_INDEX with: {json.dumps(query_body)}")
+
         res = es.search(index=TRACKING_INDEX, body=query_body)
-        print(f"DEBUG: Response from TRACKING_INDEX search: {json.dumps(res)}") # Print entire response
-        if hasattr(res, 'body'):
-            print(f"DEBUG: Response body from TRACKING_INDEX search: {res.body}")
-        elif isinstance(res, dict):
-            print(f"DEBUG: Response (dict) from TRACKING_INDEX search: {res}")
-        else:
-            print(f"DEBUG: No hits found in TRACKING_INDEX for pipeline {PIPELINE_NAME}.")
+
+        # Safely print debug information from the response without causing serialization errors
+        # You can convert the main body of the response to a dict for inspection if needed
+        # For elasticsearch-py 8.x, the response object often acts like a dictionary for its main body.
+        # Or access specific parts like res.get('hits')
+        # Let's try to print a summary or specific parts safely:
+        try:
+            # Attempt to convert the main response body to dict for logging if it's not already.
+            # The ObjectApiResponse often behaves like a dict for its primary data.
+            response_summary_for_log = dict(res)
+        except Exception:
+            # If direct dict conversion fails, just get a string representation or specific safe fields
+            response_summary_for_log = {"hits_total": res.get("hits", {}).get("total", {}).get("value", "N/A"),
+                                        "took_ms": res.get("took", "N/A")}
+        print(f"DEBUG: Summary from TRACKING_INDEX search: {json.dumps(response_summary_for_log, default=str)}")
+
+        # Check for hits safely
+        # res.get("hits", {}) ensures 'hits' key exists, .get("hits", []) ensures inner 'hits' list exists
         hits_list = res.get("hits", {}).get("hits", [])
-        if hits_list:  # Check if the list of hits is not empty
+        if hits_list:  # Check if the list of actual hit documents is not empty
             print(f"DEBUG: Found {len(hits_list)} hit(s) in TRACKING_INDEX.")
             first_hit = hits_list[0]
-            source = first_hit.get("_source")
-            if source and "last_run_time" in source:
-                return source["last_run_time"]
+            source = first_hit.get("_source")  # Safely get _source
+            if source and "last_run_time" in source:  # Check if _source exists and has last_run_time
+                last_run_time_value = source["last_run_time"]
+                print(f"DEBUG: Successfully retrieved last_run_time: {last_run_time_value}")
+                return last_run_time_value
             else:
-                print(f"DEBUG: First hit found, but missing _source or last_run_time field. Hit: {first_hit}")
+                print(f"DEBUG: First hit found, but missing _source or 'last_run_time' field. Hit content: {first_hit}")
         else:
             print(f"DEBUG: No hits found in TRACKING_INDEX for pipeline {PIPELINE_NAME}.")
 
     except Exception as e:
+        # Make sure 'traceback' is imported to use traceback.format_exc()
+        # If 'import traceback' is at the top of the file, it's available here.
         print(
             f"WARNING: get_last_run_time() fell back to fallback of 10 minutes. Problem: {e}\nTraceback: {traceback.format_exc()}")
 
     print(f"DEBUG: Proceeding with 10-minute fallback in get_last_run_time.")
     return (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
-
 
 # Write a new timestamp after successful fetch
 def store_last_run_time(run_end_time):
