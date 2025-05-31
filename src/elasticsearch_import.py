@@ -52,12 +52,18 @@ def get_last_run_time():
     return (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
 
 # Write a new timestamp after successful fetch
-def store_last_run_time(end_time):
-    es.index(index=TRACKING_INDEX, document={
-        "pipeline": PIPELINE_NAME,
-        "last_run_time": end_time,
-        "status": "success"
-    })
+def store_last_run_time(run_end_time):
+    try:
+        es.index(index=TRACKING_INDEX, document={
+            "pipeline": PIPELINE_NAME,
+            "last_run_time": run_end_time,
+            "status": "success"
+        })
+        es.indices.refresh(index=TRACKING_INDEX)
+    except Exception as e:
+        print(f"Error: Cannot save last run time: ({run_end_time}): {e}")
+        sys.exit(1)
+
 
 start_time_str = get_last_run_time()
 start_time_dt = datetime.fromisoformat(start_time_str.replace("Z", "+00:00"))
