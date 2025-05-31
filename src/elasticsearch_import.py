@@ -40,16 +40,23 @@ es = Elasticsearch(
 # Return the last timestamp this pipeline was executed
 def get_last_run_time():
     try:
-        res = es.search(index=TRACKING_INDEX, body={
+        query_body = {
             "size": 1,
             "sort": [{"last_run_time": "desc"}],
-            "query": {"term": {"pipeline": PIPELINE_NAME}}
-        })
+            "query": {"term": {"pipeline.keyword": PIPELINE_NAME}}
+        }
+        print(f"DEBUG: Querying TRACKING_INDEX with: {json.dumps(query_body)}")
+        res = es.search(index=TRACKING_INDEX, body=query_body)
+        print(f"DEBUG: Response from TRACKING_INDEX search: {json.dumps(res)}") # Print entire response
         if res["hits"]["hits"]:
+            print(f"DEBUG: Found hits in TRACKING_INDEX.")
             return res["hits"]["hits"][0]["_source"]["last_run_time"]
+        else:
+            print(f"DEBUG: No hits found in TRACKING_INDEX for pipeline {PIPELINE_NAME}.")
     except Exception as e:
         print(f"WARNING: get_last_run_time() fell back to fallback of 10 minutes. Problem: {e}")
     # If tracking index fails or is empty then fallback to last 10 minutes
+    print(f"DEBUG: Proceeding with 10-minute fallback.")
     return (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
 
 # Write a new timestamp after successful fetch
